@@ -44,13 +44,19 @@ namespace Instruction {
             return os;
         }
 
-        template<typename insT>
-        friend InstructionStream &operator<< (InstructionStream& is, const insT& instruction) {
+        template<typename insT = MachineInstruction>
+        friend InstructionStream &operator<< (InstructionStream& is, const insT&& instruction) {
             is.push_back(std::make_shared<insT>(instruction));
             return is;
         }
 
-        template<typename insT>
+//        template<typename insT>
+//        friend InstructionStream &operator<< (InstructionStream& is, const insT& instruction) {
+//            is.push_back(std::make_shared<insT>(instruction));
+//            return is;
+//        }
+
+        template<typename insT = MachineInstruction>
         friend InstructionStream &operator+= (InstructionStream& is, const insT& ins) {
             return is << ins;
         }

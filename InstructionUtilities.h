@@ -19,6 +19,7 @@ namespace Instruction::Utilities {
         typedef Operands::ImmediateNumber<12> imm12;
         typedef Operands::ImmediateNumber<16> imm16;
         typedef Operands::ImmediateNumber<32> imm32;
+        typedef Operands::ImmediateNumber<5> imm5;
         typedef Operands::ImmediateNumber<0> offset;
         typedef Operands::ImmediateNumber<-8> offset8;
 
