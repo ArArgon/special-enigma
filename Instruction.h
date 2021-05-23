@@ -14,7 +14,7 @@
 #include "InstructionOperands.h"
 
 namespace Instruction {
-    // Enumerations
+    // InstructionTypeEnumerations
     enum BrType {
         B, BL, BLX, BX
     };
@@ -25,16 +25,52 @@ namespace Instruction {
         CMP, CMN, TST, TEQ
     };
 
-    class Condition {
+    // ConditionTypeEnumerations
+    enum ConditionType {
+        EQ = 0,
+        NE,
+        CS,
+        CC,
+        MI,
+        PL,
+        VS,
+        VC,
+        HI,
+        LS,
+        GE,
+        LT,
+        GT,
+        LE,
+        AL,
+        NONE,
+        HS = CS,
+        LO = CC
+    };
 
+    static const std::string conditionTable[] = {
+        "eq", 
+        "ne",
+        "cs",
+        "cc",
+        "mi",
+        "pl",
+        "vs",
+        "vc",
+        "hi",
+        "ls",
+        "ge",
+        "lt",
+        "gt",
+        "le",
+        "al",
+        "" // NONE
     };
 
     // Instruction base
     class MachineInstruction {
         typedef std::vector<std::shared_ptr<MachineInstruction>> InstructionStream;
     protected:
-        Condition condition;
-        bool isConditioned;
+        ConditionType condition = NONE;
     public:
         virtual std::string toASM() const = 0;
         virtual ~MachineInstruction() = default;
@@ -119,7 +155,7 @@ namespace Instruction {
                 default:
                     throw std::runtime_error(std::string("Unexpected branch type: ") + std::to_string(branchType));
             }
-            return ans + target;
+            return ans + conditionTable[condition] + target;
         }
     };
 
@@ -174,12 +210,12 @@ namespace Instruction {
         }
 
         std::string toASM() const override  {
-            std::string ans = "add";
+            std::string ans = "add" ;
             if (update)
                 ans += "s";
             const Operands::Operand* source_2 = isImmediate ? static_cast<const Operands::Operand *>(&source_2_imm)
                                                             : static_cast<const Operands::Operand *>(&source_2_flex);
-            ans += " " + target.toASM() + ", " + source_1.toASM() + ", " + source_2->toASM();
+            ans += conditionTable[condition] + " " + target.toASM() + ", " + source_1.toASM() + ", " + source_2->toASM();
             return ans;
         }
     };
@@ -247,7 +283,7 @@ namespace Instruction {
             std::string ins = bitTable[instructionType];
             if (update)
                 ins += "s";
-            return ins + " " + target.toASM() + ", " + source_1.toASM() + ", " + source_2.toASM();
+            return ins + conditionTable[condition] + " " + target.toASM() + ", " + source_1.toASM() + ", " + source_2.toASM();
         }
     };
 
@@ -294,7 +330,7 @@ namespace Instruction {
             if (instructionType > CMPType::TEQ)
                 throw std::runtime_error(std::string("Unexpected comparison instruction type: ") + std::to_string(instructionType));
 
-            return bitTable[instructionType] + " " + source_1.toASM() + ", " + source_2.toASM();
+            return bitTable[instructionType] + conditionTable[condition] + " " + source_1.toASM() + ", " + source_2.toASM();
         }
 
     };
