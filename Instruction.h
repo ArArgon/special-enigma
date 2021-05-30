@@ -330,7 +330,7 @@ namespace Instruction {
             if (instructionType > CMPType::TEQ)
                 throw std::runtime_error(std::string("Unexpected comparison instruction type: ") + std::to_string(instructionType));
 
-            return bitTable[instructionType] + conditionTable[condition] + " " + source_1.toASM() + ", " + source_2.toASM();
+            return bitTable[instructionType] + " " + source_1.toASM() + ", " + source_2.toASM();
         }
 
     };
