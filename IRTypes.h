@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 #include <memory>
+#include <utility>
 #include <algorithm>
 
 namespace IntermediateRepresentation {
@@ -163,8 +164,8 @@ namespace IntermediateRepresentation {
         // 2. Destination variable
         // 3, 4, 5, ..., N: arguments
         template<typename ...Args>
-        Statement(IRStmtType stmtType1, const IROperand& dest, Args... args) : stmtType(stmtType1) {
-            Ops.emplace_back(dest, args...);
+        Statement(IRStmtType stmtType1, Args&&... args) : stmtType(stmtType1) {
+            (Ops.emplace_back(std::forward<Args>(args)), ...);
         }
 
         IRStmtType getStmtType() const {
@@ -208,9 +209,9 @@ namespace IntermediateRepresentation {
             statements.push_back(statement);
         }
 
-        template<class Args>
-        void insert(Args args...) {
-            statements.emplace_back(args);
+        template<class ...Args>
+        void insert(Args&& ... args) {
+            (statements.emplace_back(std::forward<Args>(args)), ...);
         }
 
         friend Function& operator<< (Function& func, const Statement& statement) {
@@ -219,8 +220,8 @@ namespace IntermediateRepresentation {
         }
 
         template<class ...Args>
-        void insertParam(Args ...args) {
-            parameters.template emplace_back(args...);
+        void insertParam(Args&& ...args) {
+            (parameters.template emplace_back(std::forward<Args>(args)), ...);
         }
 
         const std::string &getFunName() const {
@@ -263,8 +264,8 @@ namespace IntermediateRepresentation {
         // Insert functions
         // eg: insert(func1, func2, func3, ..., funcN)
         template<class F, class ...Args>
-        void insert(Args... args) {
-            functions.emplace_back(args...);
+        void insert(Args&&... args) {
+            (functions.emplace_back(args), ...);
         }
 
         // Insert parameters
