@@ -67,9 +67,9 @@ namespace IntermediateRepresentation {
     private:
         IROpType irOpType;
         IRType irValType;
-        std::shared_ptr<int64_t> Value;
+        int64_t Value;
         std::string strValue;
-        std::shared_ptr<std::string> varName;
+        std::string varName;
         bool isPointer = false;
 
     public:
@@ -89,19 +89,19 @@ namespace IntermediateRepresentation {
             IROperand::irValType = irType;
         }
 
-        const std::shared_ptr<int64_t> &getValue() const {
+        int64_t getValue() const {
             return Value;
         }
 
-        void setValue(const std::shared_ptr<int64_t> &value) {
+        void setValue(int64_t value) {
             Value = value;
         }
 
-        const std::shared_ptr<std::string> &getVarName() const {
+        const std::string &getVarName() const {
             return varName;
         }
 
-        void setVarName(const std::shared_ptr<std::string> &varName) {
+        void setVarName(const std::string &varName) {
             IROperand::varName = varName;
         }
 
@@ -115,29 +115,29 @@ namespace IntermediateRepresentation {
         }
 
         // Immediate Number
-        IROperand(IRType irValType, std::shared_ptr<int64_t> value) : irValType(irValType), Value(std::move(value)), irOpType(ImmVal), varName(nullptr) { }
+        IROperand(IRType irValType, int64_t value) : irValType(irValType), Value(value), irOpType(ImmVal), varName("") { }
 
         // String
-        IROperand(std::string strValue) : strValue(std::move(strValue)), irValType(str), irOpType(ImmVal), varName(nullptr) { }
+        IROperand(std::string strValue) : strValue(std::move(strValue)), irValType(str), irOpType(ImmVal), varName("") { }
 
         // Variable (specify whether it's a pointer)
-        IROperand(IRType irValType, std::shared_ptr<int64_t> value, std::shared_ptr<std::string> varName,
-                  bool isPointer) : irValType(irValType), Value(std::move(value)), varName(std::move(varName)), isPointer(isPointer), irOpType(Var) {
+        IROperand(IRType irValType, std::string varName,
+                  bool isPointer) : irValType(irValType), Value(0), varName(std::move(varName)), isPointer(isPointer), irOpType(Var) {
             // if it's anonymous, a generated name will be assigned.
-            if (varName == nullptr)
-                this->varName = std::move(std::make_shared<std::string>(NamingUtil::nextVarName()));
+            if (varName.empty())
+                this->varName = std::move(NamingUtil::nextVarName());
         }
 
         // Variable (not a pointer)
-        IROperand(IRType irValType, std::shared_ptr<int64_t> value, std::shared_ptr<std::string> varName)
-                : irValType(irValType), Value(std::move(value)), varName(std::move(varName)), irOpType(Var) {
+        IROperand(IRType irValType, std::string varName)
+                : irValType(irValType), Value(0), varName(std::move(varName)), irOpType(Var) {
             // if it's anonymous, a generated name will be assigned.
-            if (varName == nullptr)
-                this->varName = std::move(std::make_shared<std::string>(NamingUtil::nextVarName()));
+            if (varName.empty())
+                this->varName = std::move(NamingUtil::nextVarName());
         }
 
         // Empty constructor
-        IROperand() : irOpType(Null), Value(nullptr), varName(nullptr) { }
+        IROperand() : irOpType(Null), Value(0), varName("") { }
     };
 
     class Statement {
@@ -202,6 +202,7 @@ namespace IntermediateRepresentation {
     public:
 
         Function(std::string funName) : funName(std::move(funName)) { }
+        Function() = default;
 
         void insertStatement(const Statement& statement) {
             statements.push_back(statement);
@@ -215,6 +216,11 @@ namespace IntermediateRepresentation {
         friend Function& operator<< (Function& func, const Statement& statement) {
             func.insertStatement(statement);
             return func;
+        }
+
+        template<class ...Args>
+        void insertParam(Args ...args) {
+            parameters.template emplace_back(args...);
         }
 
         const std::string &getFunName() const {
@@ -256,17 +262,16 @@ namespace IntermediateRepresentation {
 
         // Insert functions
         // eg: insert(func1, func2, func3, ..., funcN)
-        template<class ...Args>
-        void insert(Function param, Args... args) {
-            functions.push_back(param);
-            insert(args...);
+        template<class F, class ...Args>
+        void insert(Args... args) {
+            functions.emplace_back(args...);
         }
 
         // Insert parameters
         // eg: insert(param1, param2, param3, ..., paramN)
         template<class ...Args>
-        void insert(IROperand param, Args... args) {
-            global.push_back(param);
+        void insert(const IROperand& param, Args... args) {
+            global.push_back(args...);
             insert(args...);
         }
 
