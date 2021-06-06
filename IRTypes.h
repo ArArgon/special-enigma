@@ -14,10 +14,12 @@
 
 namespace IntermediateRepresentation {
 
-    enum IRType {
+    enum IRDataType {
         i1, i4, i8, i16, i32,   // types of integers
         str, t_void
     };
+
+    typedef IRDataType IRType;
 
     enum IRStmtType {
         BR,         // branching
@@ -36,6 +38,8 @@ namespace IntermediateRepresentation {
         CMP_SGE,    // comparison (signed, greater)
         CMP_ULE,    // comparison (unsigned, less)
         CMP_SLE,    // comparison (signed, less)
+        GLB_CONST,  // global constant
+        GLB_VAR,    // global variable
 
         LSH, RSH,   // bits shifting
         OR, AND, XOR, NOT // boolean operators
@@ -67,7 +71,7 @@ namespace IntermediateRepresentation {
     class IROperand {
     private:
         IROpType irOpType;
-        IRType irValType;
+        IRDataType irValType;
         int64_t Value;
         std::string strValue;
         std::string varName;
@@ -82,11 +86,16 @@ namespace IntermediateRepresentation {
             IROperand::strValue = strValue;
         }
 
-        IRType getIrType() const {
+        [[deprecated]]
+        IRDataType getIrType() const {
             return irValType;
         }
 
-        void setIrType(IRType irType) {
+        IRDataType getIrDataType() const {
+            return irValType;
+        }
+
+        void setIrType(IRDataType irType) {
             IROperand::irValType = irType;
         }
 
@@ -116,13 +125,13 @@ namespace IntermediateRepresentation {
         }
 
         // Immediate Number
-        IROperand(IRType irValType, int64_t value) : irValType(irValType), Value(value), irOpType(ImmVal), varName("") { }
+        IROperand(IRDataType irValType, int64_t value) : irValType(irValType), Value(value), irOpType(ImmVal), varName("") { }
 
         // String
         IROperand(std::string strValue) : strValue(std::move(strValue)), irValType(str), irOpType(ImmVal), varName("") { }
 
         // Variable (specify whether it's a pointer)
-        IROperand(IRType irValType, std::string varName,
+        IROperand(IRDataType irValType, std::string varName,
                   bool isPointer) : irValType(irValType), Value(0), varName(std::move(varName)), isPointer(isPointer), irOpType(Var) {
             // if it's anonymous, a generated name will be assigned.
             if (varName.empty())
@@ -130,7 +139,7 @@ namespace IntermediateRepresentation {
         }
 
         // Variable (not a pointer)
-        IROperand(IRType irValType, std::string varName)
+        IROperand(IRDataType irValType, std::string varName)
                 : irValType(irValType), Value(0), varName(std::move(varName)), irOpType(Var) {
             // if it's anonymous, a generated name will be assigned.
             if (varName.empty())
@@ -151,6 +160,14 @@ namespace IntermediateRepresentation {
         std::string label_name;
     public:
 
+        auto atOperands(const size_t pos) {
+            return Ops[pos];
+        }
+
+        auto operator[] (const size_t pos) {
+            return Ops[pos];
+        }
+
         // Label
         explicit Statement(std::string labelName) : stmtType(LABEL), label_name(std::move(labelName)) { }
 
@@ -165,7 +182,7 @@ namespace IntermediateRepresentation {
         // 3, 4, 5, ..., N: arguments
         template<typename ...Args>
         Statement(IRStmtType stmtType1, Args&&... args) : stmtType(stmtType1) {
-            (Ops.emplace_back(std::forward<Args>(args)), ...);
+            (Ops.push_back(std::forward<Args>(args)), ...);
         }
 
         IRStmtType getStmtType() const {
@@ -201,6 +218,17 @@ namespace IntermediateRepresentation {
         std::vector<IROperand> parameters;
 
     public:
+        auto operator[] (const size_t pos) {
+            return statements[pos];
+        }
+
+        auto atStatements(const size_t pos) {
+            return statements[pos];
+        }
+
+        auto atParameters(const size_t pos) {
+            return parameters[pos];
+        }
 
         Function(std::string funName) : funName(std::move(funName)) { }
         Function() = default;
@@ -211,7 +239,7 @@ namespace IntermediateRepresentation {
 
         template<class ...Args>
         void insert(Args&& ... args) {
-            (statements.emplace_back(std::forward<Args>(args)), ...);
+            (statements.push_back(std::forward<Args>(args)), ...);
         }
 
         friend Function& operator<< (Function& func, const Statement& statement) {
@@ -250,37 +278,44 @@ namespace IntermediateRepresentation {
     };
 
     class IRProgram {
-        std::vector<IROperand> global;
+        std::vector<Statement> global;
         std::vector<Function> functions;
 
         void insert() { };
     public:
         // 1. functions, 2. global variables
-        IRProgram(std::vector<IROperand> global, std::vector<Function> functions) : global(std::move(global)), functions(std::move(functions)) { }
-
+        IRProgram(std::vector<Statement> global, std::vector<Function> functions) : global(std::move(global)), functions(std::move(functions)) { }
         // default constructor
         IRProgram() = default;
 
+        auto atGlobal(const size_t pos) {
+            return global[pos];
+        }
+
+        auto atFunctions(const size_t pos) {
+            return functions[pos];
+        }
+
         // Insert functions
         // eg: insert(func1, func2, func3, ..., funcN)
-        template<class F, class ...Args>
+        template<class ...Args>
         void insert(Args&&... args) {
             (functions.emplace_back(args), ...);
         }
 
-        // Insert parameters
-        // eg: insert(param1, param2, param3, ..., paramN)
+        // Insert globals
+        // eg: insert(global1, global2, global3, ..., paramN)
         template<class ...Args>
-        void insert(const IROperand& param, Args... args) {
-            global.push_back(args...);
-            insert(args...);
+        void insert(const Statement& glb, Args... args) {
+            global.push_back(glb);
+            (global.push_back(std::forward<Args>(args)), ...);
         }
 
-        const std::vector<IROperand> &getGlobal() const {
+        const std::vector<Statement> &getGlobal() const {
             return global;
         }
 
-        void setGlobal(const std::vector<IROperand> &global) {
+        void setGlobal(const std::vector<Statement> &global) {
             IRProgram::global = global;
         }
 
