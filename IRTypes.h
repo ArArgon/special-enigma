@@ -160,11 +160,11 @@ namespace IntermediateRepresentation {
         std::string label_name;
     public:
 
-        auto atOperands(const size_t pos) {
+        auto& atOperands(const size_t pos) {
             return Ops[pos];
         }
 
-        auto operator[] (const size_t pos) {
+        auto& operator[] (const size_t pos) {
             return Ops[pos];
         }
 
@@ -218,15 +218,15 @@ namespace IntermediateRepresentation {
         std::vector<IROperand> parameters;
 
     public:
-        auto operator[] (const size_t pos) {
+        auto& operator[] (const size_t pos) {
             return statements[pos];
         }
 
-        auto atStatements(const size_t pos) {
+        auto& atStatements(const size_t pos) {
             return statements[pos];
         }
 
-        auto atParameters(const size_t pos) {
+        auto& atParameters(const size_t pos) {
             return parameters[pos];
         }
 
@@ -288,11 +288,11 @@ namespace IntermediateRepresentation {
         // default constructor
         IRProgram() = default;
 
-        auto atGlobal(const size_t pos) {
+        auto& atGlobal(const size_t pos) {
             return global[pos];
         }
 
-        auto atFunctions(const size_t pos) {
+        auto& atFunctions(const size_t pos) {
             return functions[pos];
         }
 
