@@ -16,20 +16,64 @@ namespace IntermediateRepresentation {
 
     enum IRDataType {
         i1, i4, i8, i16, i32,   // types of integers
-        str, t_void
+        str, t_void, label = t_void
     };
 
     typedef IRDataType IRType;
 
     enum IRStmtType {
         BR,         // branching
+        /* br label  label
+         *
+         * // conditional branching
+         * br <else> %condition, <if true>, <if false>
+         * */
+
         ADD,        // addition
+        /*
+         * add i32  %dest, i32 %opr1, i32 %opr2
+         * %dest = %opr1 + %opr2;
+         * */
+
         MUL,        // multiplication
+        /*
+         * mul i32  %dest, i32 %opr1, i32 %opr2
+         * %dest = %opr1 * %opr2;
+         * */
+
         DIV,        // division
+        /*
+         * div i32  %dest, i32 %opr1, i32 %opr2
+         * %dest = %opr1 / %opr2;
+         * */
+
+        MOD,        // residue
+        /*
+         * mov  i32 %dest, i32 %opr1, i32 %opr2
+         * %dest = %opr1 % %opr2;
+         * */
+
         SUB,        // subtraction
+        /*
+         * sub i32  %dest, i32 %opr1, i32 %opr2
+         * %dest = %opr1 - %opr2;
+         * */
+
         CALL,       // function call
+        /*
+         * call void func <return_var> par1, par2, par3, ...
+         *
+         * If 'func' returns void, 'return_var' will hold the place but be **ignored** by IRTranslator.
+         * */
+
+
         RETURN,     // return from a function
         ALLOCA,     // allocating stack
+        /*
+         * alloca i32 %dest;
+         * */
+
+
         LABEL,      // label
         LOAD,       // load to variable
         STORE,      // save to allocated space
@@ -40,6 +84,9 @@ namespace IntermediateRepresentation {
         CMP_SLE,    // comparison (signed, less)
         GLB_CONST,  // global constant
         GLB_VAR,    // global variable
+        /*
+         * (glb_var i32), %dest, i32 <val>
+         * */
 
         LSH, RSH,   // bits shifting
         OR, AND, XOR, NOT // boolean operators
@@ -72,7 +119,7 @@ namespace IntermediateRepresentation {
     private:
         IROpType irOpType;
         IRDataType irValType;
-        int64_t Value;
+        int32_t Value;
         std::string strValue;
         std::string varName;
         bool isPointer = false;
@@ -84,6 +131,10 @@ namespace IntermediateRepresentation {
 
         void setStrValue(const std::string &strValue) {
             IROperand::strValue = strValue;
+        }
+
+        IROpType getIrOpType() const {
+            return irOpType;
         }
 
         [[deprecated]]
@@ -99,11 +150,11 @@ namespace IntermediateRepresentation {
             IROperand::irValType = irType;
         }
 
-        int64_t getValue() const {
+        int32_t getValue() const {
             return Value;
         }
 
-        void setValue(int64_t value) {
+        void setValue(int32_t value) {
             Value = value;
         }
 
@@ -125,7 +176,7 @@ namespace IntermediateRepresentation {
         }
 
         // Immediate Number
-        IROperand(IRDataType irValType, int64_t value) : irValType(irValType), Value(value), irOpType(ImmVal), varName("") { }
+        IROperand(IRDataType irValType, int32_t value) : irValType(irValType), Value(value), irOpType(ImmVal), varName("") { }
 
         // String
         IROperand(std::string strValue) : strValue(std::move(strValue)), irValType(str), irOpType(ImmVal), varName("") { }
@@ -152,6 +203,7 @@ namespace IntermediateRepresentation {
 
     class Statement {
         IRStmtType stmtType;
+        IRDataType dataType;
 
         // Ops[0]: Destination
         // Ops[1], [2], ..., [n]: operand 1, 2, 3, ...
@@ -169,20 +221,29 @@ namespace IntermediateRepresentation {
         }
 
         // Label
-        explicit Statement(std::string labelName) : stmtType(LABEL), label_name(std::move(labelName)) { }
+        explicit Statement(std::string labelName) : stmtType(LABEL), dataType(t_void), label_name(std::move(labelName)) { }
 
         // Normal statement:
         // 1. Statement type;
         // 2. operands
-        Statement(IRStmtType stmtType, std::vector<IROperand> ops) : stmtType(stmtType), Ops(std::move(ops)) { }
+        Statement(IRStmtType stmtType, IRDataType irDataType, std::vector<IROperand> ops) : stmtType(stmtType), dataType(irDataType), Ops(std::move(ops)) { }
 
         // Variadic-style statement constructor:
         // 1. Statement Type
-        // 2. Destination variable
-        // 3, 4, 5, ..., N: arguments
+        // 2. Statement data type
+        // 3. Destination variable
+        // 4, 5, 6, ..., N: arguments
         template<typename ...Args>
-        Statement(IRStmtType stmtType1, Args&&... args) : stmtType(stmtType1) {
+        Statement(IRStmtType stmtType1, IRDataType irDataType, Args&&... args) : stmtType(stmtType1), dataType(irDataType) {
             (Ops.push_back(std::forward<Args>(args)), ...);
+        }
+
+        IRDataType getDataType() const {
+            return dataType;
+        }
+
+        void setDataType(IRDataType dataType) {
+            Statement::dataType = dataType;
         }
 
         IRStmtType getStmtType() const {
@@ -214,6 +275,7 @@ namespace IntermediateRepresentation {
 
     class Function {
         std::string funName;
+        IRDataType returnType;
         std::vector<Statement> statements;
         std::vector<IROperand> parameters;
 
@@ -230,8 +292,19 @@ namespace IntermediateRepresentation {
             return parameters[pos];
         }
 
-        Function(std::string funName) : funName(std::move(funName)) { }
+        Function(std::string funName) : funName(std::move(funName)), returnType(t_void) { }
+
+        Function(std::string funName, IRDataType returnType) : funName(std::move(funName)), returnType(returnType) { }
+
         Function() = default;
+
+        IRDataType getReturnType() const {
+            return returnType;
+        }
+
+        void setReturnType(IRDataType returnType) {
+            Function::returnType = returnType;
+        }
 
         void insertStatement(const Statement& statement) {
             statements.push_back(statement);
@@ -281,7 +354,7 @@ namespace IntermediateRepresentation {
         std::vector<Statement> global;
         std::vector<Function> functions;
 
-        void insert() { };
+
     public:
         // 1. functions, 2. global variables
         IRProgram(std::vector<Statement> global, std::vector<Function> functions) : global(std::move(global)), functions(std::move(functions)) { }

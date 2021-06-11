@@ -108,6 +108,11 @@ namespace Instruction::Operands {
 
         void emplaceRegister() { }
     public:
+        template<class... Args>
+        RegisterList(Args... args) {
+            (regList.push_back(args), ...);
+        }
+
         RegisterList() = default;
         RegisterList(const std::vector<Register>& regs) {
             for(auto& var : regs)
@@ -150,6 +155,34 @@ namespace Instruction::Operands {
                 ans += regTable[reg];
             }
             return ans + " }";
+        }
+    };
+
+    class LoadSaveOperand : public Operand {
+        Register reg;
+        int64_t offset;
+        bool addrAll;
+
+    public:
+        LoadSaveOperand() = default;
+
+        LoadSaveOperand(Register reg, int64_t offset, bool addrAll) : reg(std::move(reg)), offset(offset),
+                                                                             addrAll(addrAll) { }
+
+        LoadSaveOperand(Register reg) : reg(std::move(reg)), offset(0), addrAll(true) { }
+
+        std::string toASM() const override {
+            std::string ans = "[" + reg.toASM();
+            if (addrAll) {
+                if (offset)
+                    ans += ", #" + std::to_string(offset);
+                ans += "]";
+            } else {
+                ans += "]";
+                if (offset)
+                    ans += ", #" + std::to_string(offset);
+            }
+            return ans;
         }
     };
 

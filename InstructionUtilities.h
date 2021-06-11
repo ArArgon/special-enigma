@@ -14,6 +14,18 @@ namespace Instruction::Utilities {
     std::vector<MachineInstruction> translateInteger() {
         // TODO
     }
+
+    bool isTooLong(int32_t val) {
+        uint32_t u_val = reinterpret_cast<int32_t>(val);
+        while (!(u_val & 1))
+            u_val >>= 1;
+        int high = 31;
+        while (high > 15)
+            if (u_val & 1 << (high))
+                break;
+        return high > 15;
+    }
+
     namespace Abbr {
         typedef Operands::ImmediateNumber<8> imm8;
         typedef Operands::ImmediateNumber<12> imm12;
