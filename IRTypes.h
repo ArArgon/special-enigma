@@ -132,7 +132,7 @@ namespace IntermediateRepresentation {
 
         // Variable (specify whether it's a pointer)
         IROperand(IRDataType irValType, std::string varName,
-                  bool isPointer) : irValType(irValType), Value(0), varName(std::move(varName)), isPointer(isPointer), irOpType(Var) {
+                  bool isPointer) : irValType(irValType), Value(0), varName(varName), isPointer(isPointer), irOpType(Var) {
             // if it's anonymous, a generated name will be assigned.
             if (varName.empty())
                 this->varName = std::move(NamingUtil::nextVarName());
@@ -140,7 +140,7 @@ namespace IntermediateRepresentation {
 
         // Variable (not a pointer)
         IROperand(IRDataType irValType, std::string varName)
-                : irValType(irValType), Value(0), varName(std::move(varName)), irOpType(Var) {
+                : irValType(irValType), Value(0), varName(varName), irOpType(Var) {
             // if it's anonymous, a generated name will be assigned.
             if (varName.empty())
                 this->varName = std::move(NamingUtil::nextVarName());
