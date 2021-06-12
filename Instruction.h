@@ -187,6 +187,7 @@ namespace Instruction {
                     ans = std::string(".long    ");
                     break;
                 case WORD:
+                    ans = std::string(".word    ");
                     break;
             }
             if (isStr)
@@ -201,7 +202,7 @@ namespace Instruction {
         Operands::Label labelName;
 
     public:
-        LabelInstruction(const Operands::Label &labelName) : labelName(labelName) { }
+        LabelInstruction(Operands::Label labelName) : labelName(std::move(labelName)) { }
 
         const std::string &getLabelName() const {
             return labelName;

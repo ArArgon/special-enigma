@@ -19,8 +19,8 @@ namespace Instruction::Utilities {
         uint32_t u_val = reinterpret_cast<int32_t>(val);
         while (!(u_val & 1))
             u_val >>= 1;
-        int high = 31;
-        while (high > 15)
+        int high;
+        for (high = 31; high > 15; high--)
             if (u_val & 1 << (high))
                 break;
         return high > 15;

@@ -428,7 +428,7 @@ namespace Backend::Translator {
                         } else {
                             if (cmpFlag == Instruction::Condition::Cond_NO) // no comparison
                                 throw std::runtime_error("Invalid branching IR: No comparison before conditional branching.");
-                            auto&& br = Instruction::BranchInstruction(B, ops[0].getVarName());
+                            auto&& br = Instruction::BranchInstruction(B, label_map[ops[0].getVarName()]);
                             br.setCondition(cmpFlag);
                             body << std::move(br);
                         }
