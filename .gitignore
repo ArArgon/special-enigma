@@ -1,11 +1,2 @@
-
-.vs/ProjectSettings.json
-.vs/slnx.sqlite
-.vs/special-enigma/v16/Browse.VC.db
-.vs/special-enigma/v16/Browse.VC.db-shm
-.vs/special-enigma/v16/Browse.VC.db-wal
-.vs/special-enigma/v16/Browse.VC.opendb
-.vs/special-enigma/v16/ipch/AutoPCH/e8a7fe302d8c33c1/MAIN.ipch
-.vs/special-enigma/v16/.suo
-.vs/tasks.vs.json
-.vs/VSWorkspaceState.json
+/cmake-build-debug/
+/.idea/
