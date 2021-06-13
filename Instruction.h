@@ -33,7 +33,12 @@ namespace Instruction {
     class Condition {
     public:
         enum Cond {
-            Cond_NO, Cond_Equal, Cond_Greater, Cond_Less
+            Cond_NO, 
+            Cond_Equal, Cond_NotEqual,
+            Cond_SGreaterEqual, Cond_SLessEqual,
+            Cond_SGreater, Cond_SLess,
+            Cond_UGreaterEqual, Cond_ULessEqual,
+            Cond_UGreater, Cond_ULess,
         };
     private:
         Cond cond;
@@ -62,11 +67,20 @@ namespace Instruction {
                 case Cond_Equal:
                     return "eq";
                     break;
-                case Cond_Greater:
+                case Cond_NotEqual:
+                    return "ne";
+                    break;
+                case Cond_GreaterEqual:
                     return "ge";
                     break;
-                case Cond_Less:
+                case Cond_LessEqual:
                     return "le";
+                    break;
+                case Cond_Greater:
+                    return "gt";
+                    break;
+                case Cond_Less
+                    return "lt";
                     break;
             }
         }

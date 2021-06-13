@@ -360,6 +360,33 @@ namespace Backend::Translator {
                 return new_on_stk(varName);
             };
 
+            auto create_cmp_instruction = [&](const auto& source1, const auto& source2) {
+                switch (source1.getIrOpType()) {
+                case IntermediateRepresentation::ImmVal:
+                    //ERROR
+                    break;
+                case IntermediateRepresentation::Var:
+                    load_to_reg(r0, source1.getVarName());
+                    break;
+                case IntermediateRepresentation::Null:
+                    throw std::runtime_error("Invalid IR: unexpected arguments for ICMP        statement");
+                    break;
+                }
+                switch (source2.getIrOpType()) {
+                case IntermediateRepresentation::ImmVal:
+                    int32_t imm = source2.getValue();
+                    body << Instruction::ComparisonInstruction(Instruction::CMP, r0, imm16(imm));
+                    break;
+                case IntermediateRepresentation::Var:
+                    load_to_reg(r1, source2.getVarName());
+                    body << Instruction::ComparisonInstruction(Instruction::CMP, r0, r1);
+                    break;
+                case IntermediateRepresentation::Null:
+                    throw std::runtime_error("Invalid IR: unexpected arguments for ICMP        statement");
+                    break;
+                }
+            }
+
             /*
              * func_name:
              *      push    { fp, lr }
@@ -408,7 +435,7 @@ namespace Backend::Translator {
             }
 
             // function body
-            Instruction::Condition::Cond cmpFlag = Instruction::Condition::Cond_NO;    // 0: no comparison, 1: equal, 2: greater, 3: less
+            Instruction::Condition::Cond cmpFlag = Instruction::Condition::Cond_NO;
             for (auto& stmt : statements) {
                 auto& ops = stmt.getOps();
                 auto data_type = stmt.getDataType();
@@ -661,22 +688,39 @@ namespace Backend::Translator {
                          *
                          * Remember to set cmpFlag to 'Comp_Equal' !
                          * */
+                        auto& source1 = ops[1], & source2 = ops[2];
+                        create_cmp_instruction(source1, source2);
+                        cmpFlag = Instruction::Condition::Cond_Equal;
                     }
                         break;
-                    case IntermediateRepresentation::CMP_UGE: {
-
+                    case IntermediateRepresentation::CMP_NE: {
+                        auto& source1 = ops[1], & source2 = ops[2];
+                        create_cmp_instruction(source1, source2);
+                        cmpFlag = Instruction::Condition::Cond_NotEqual;
                     }
                         break;
                     case IntermediateRepresentation::CMP_SGE: {
-
-                    }
-                        break;
-                    case IntermediateRepresentation::CMP_ULE: {
-
+                        auto& source1 = ops[1], & source2 = ops[2];
+                        create_cmp_instruction(source1, source2);
+                        cmpFlag = Instruction::Condition::Cond_SGreaterEqual;
                     }
                         break;
                     case IntermediateRepresentation::CMP_SLE: {
-
+                        auto& source1 = ops[1], & source2 = ops[2];
+                        create_cmp_instruction(source1, source2);
+                        cmpFlag = Instruction::Condition::Cond_SLessEqual;
+                    }
+                        break;
+                    case IntermediateRepresentation::CMP_SGT: {
+                        auto& source1 = ops[1], & source2 = ops[2];
+                        create_cmp_instruction(source1, source2);
+                        cmpFlag = Instruction::Condition::Cond_SGreater;
+                    }
+                        break;
+                    case IntermediateRepresentation::CMP_SLT: {
+                        auto& source1 = ops[1], & source2 = ops[2];
+                        create_cmp_instruction(source1, source2);
+                        cmpFlag = Instruction::Condition::Cond_SLess;
                     }
                         break;
                     case IntermediateRepresentation::GLB_CONST:

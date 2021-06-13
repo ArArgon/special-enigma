@@ -78,10 +78,13 @@ namespace IntermediateRepresentation {
         LOAD,       // load to variable
         STORE,      // save to allocated space
         CMP_EQ,     // comparison (equal)
-        CMP_UGE,    // comparison (unsigned, greater)
-        CMP_SGE,    // comparison (signed, greater)
-        CMP_ULE,    // comparison (unsigned, less)
-        CMP_SLE,    // comparison (signed, less)
+        CMP_NE,     // comparison (notequal)
+        CMP_UGE,    // comparison (unsigned, greaterequal)
+        CMP_ULE,    // comparison (unsigned, lesseuqal)
+        CMP_SGE,    // comparison (signed, greatereuqal)
+        CMP_SLE,    // comparison (signed, lessequal)
+        CMP_SGT,    // comparison (signed, greater)
+        CMP_SLT,    // comparison (signed, less)
         GLB_CONST,  // global constant
         GLB_VAR,    // global variable
         /*
