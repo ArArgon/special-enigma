@@ -44,7 +44,7 @@ namespace Instruction {
         Cond cond;
     public:
         Condition() : cond(Cond_NO) { }
-        Condition(Cond cond) : cond(cond) { }
+        explicit Condition(Cond cond) : cond(cond) { }
 
         Cond getCond() const {
             return cond;
@@ -70,17 +70,29 @@ namespace Instruction {
                 case Cond_NotEqual:
                     return "ne";
                     break;
-                case Cond_GreaterEqual:
+                case Cond_SGreaterEqual:
                     return "ge";
                     break;
-                case Cond_LessEqual:
+                case Cond_SLessEqual:
                     return "le";
                     break;
-                case Cond_Greater:
+                case Cond_SGreater:
                     return "gt";
                     break;
-                case Cond_Less
+                case Cond_SLess:
                     return "lt";
+                    break;
+                case Cond_UGreaterEqual:
+                    return "hs";
+                    break;
+                case Cond_ULessEqual:
+                    return "ls";
+                    break;
+                case Cond_UGreater:
+                    return "hi";
+                    break;
+                case Cond_ULess:
+                    return "lo";
                     break;
             }
         }
@@ -607,6 +619,7 @@ namespace Instruction {
                     break;
             }
             ans += target.toASM() + ", " + source.toASM();
+            return ans;
         }
     };
 

@@ -11,9 +11,6 @@ namespace Instruction::Utilities {
     /*
     * Immediate number abbr
     * */
-    std::vector<MachineInstruction> translateInteger() {
-        // TODO
-    }
 
     bool isTooLong(int32_t val) {
         uint32_t u_val = reinterpret_cast<int32_t>(val);

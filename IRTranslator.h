@@ -373,19 +373,24 @@ namespace Backend::Translator {
                     break;
                 }
                 switch (source2.getIrOpType()) {
-                case IntermediateRepresentation::ImmVal:
-                    int32_t imm = source2.getValue();
-                    body << Instruction::ComparisonInstruction(Instruction::CMP, r0, imm16(imm));
-                    break;
-                case IntermediateRepresentation::Var:
-                    load_to_reg(r1, source2.getVarName());
-                    body << Instruction::ComparisonInstruction(Instruction::CMP, r0, r1);
-                    break;
-                case IntermediateRepresentation::Null:
-                    throw std::runtime_error("Invalid IR: unexpected arguments for ICMP        statement");
-                    break;
+                    case IntermediateRepresentation::ImmVal: {
+                        int32_t imm = source2.getValue();
+                        // TODO
+#warning "The support for Imm8m is not implemented."
+                        body << Instruction::ComparisonInstruction(Instruction::CMP, r0, Operands::Operand2(imm8(imm)));
+                    }
+                        break;
+                    case IntermediateRepresentation::Var: {
+                        load_to_reg(r1, source2.getVarName());
+                        body << Instruction::ComparisonInstruction(Instruction::CMP, r0, r1);
+                    }
+                        break;
+                    case IntermediateRepresentation::Null: {
+                        throw std::runtime_error("Invalid IR: unexpected arguments for ICMP        statement");
+                    }
+                        break;
                 }
-            }
+            };
 
             /*
              * func_name:
@@ -726,6 +731,14 @@ namespace Backend::Translator {
                     case IntermediateRepresentation::GLB_CONST:
                     case IntermediateRepresentation::GLB_VAR: {
                         throw std::runtime_error("Global declarations should not appear in function body");
+                    }
+                        break;
+                    case IntermediateRepresentation::CMP_UGE: {
+
+                    }
+                        break;
+                    case IntermediateRepresentation::CMP_ULE: {
+
                     }
                         break;
                     case IntermediateRepresentation::LSH: {
