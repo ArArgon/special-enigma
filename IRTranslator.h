@@ -522,17 +522,97 @@ namespace Backend::Translator {
                     }
                         break;
                     case IntermediateRepresentation::CALL: {
-                        int arg_cnt = ops.size() - 2;
+                        /*
+                         * call t_void, func, %ret, %par1, %par2, ...
+                         * */
+                        int arg_cnt = ops.size() - 2, tmp_stk_size = stack_size;
                         if (arg_cnt < 0)
                             throw std::runtime_error("Invalid call intermediate representation: too few arguments");
-                        if (data_type == IntermediateRepresentation::t_void) {
-                            // no return
-                            // save_to_stk
-                            for (int i = 1; i <= arg_cnt; i++) {
+                        auto &func = ops[0], &ret = ops[1];
 
+                        if (func.getIrDataType() != stmt.getDataType()) {
+                            // return type unmatched
+                            throw std::runtime_error("Invalid IR: unmatched return type");
+                        }
+
+                        /*
+                         * %par1    r0
+                         * %par2    r1
+                         * %par3    r2
+                         * %par4    r3
+                         *
+                         * %parN    stk
+                         * %parN-1  stk
+                         * ...
+                         * %par5    stk
+                         *
+                         * */
+                        for (int i = arg_cnt; i >= 5; i--) {
+                            // push onto stacks
+                            auto& par = ops[i + 1];
+                            /*
+                             * mov      r2, fp // tmp stack pointer
+                             *
+                             * mov      r1, #par_i
+                             * str      r1, [r2, #-(stk+=4)]
+                             * */
+                            body << Instruction::MoveInstruction(r2, fp);
+#warning "The following support for imm16 is not implemented."
+                            if (par.getIrOpType() == IntermediateRepresentation::Var)
+                                load_to_reg(r1, par.getVarName());
+                            else
+                                body << Instruction::MoveInstruction(r1, imm16());
+                            body << Instruction::SaveInstruction(r1, Operands::LoadSaveOperand(r2, -(tmp_stk_size += 4),true));
+                        }
+                        // r0, r1, r2, r3
+                        switch (std::min(4, arg_cnt)) {
+                            case 4: {
+                                auto &par = ops[5];
+                                if (par.getIrOpType() == IntermediateRepresentation::ImmVal) {
+                                    // imm16
+                                    body << Instruction::MoveInstruction(r0, imm16(par.getValue()));
+                                } else
+                                    load_to_reg(r3, par.getVarName());
                             }
-                        } else {
+                            case 3: {
+                                auto &par = ops[4];
+                                if (par.getIrOpType() == IntermediateRepresentation::ImmVal) {
+                                    // imm16
+                                    body << Instruction::MoveInstruction(r0, imm16(par.getValue()));
+                                } else
+                                    load_to_reg(r2, par.getVarName());
+                            }
 
+                            case 2: {
+                                auto &par = ops[3];
+                                if (par.getIrOpType() == IntermediateRepresentation::ImmVal) {
+                                    // imm16
+                                    body << Instruction::MoveInstruction(r0, imm16(par.getValue()));
+                                } else
+                                    load_to_reg(r1, par.getVarName());
+                            }
+
+                            case 1: {
+                                auto &par = ops[2];
+                                if (par.getIrOpType() == IntermediateRepresentation::ImmVal) {
+                                    // imm16
+                                    body << Instruction::MoveInstruction(r0, imm16(par.getValue()));
+                                } else
+                                    load_to_reg(r0, par.getVarName());
+                            }
+                                break;
+                            default:
+                                throw std::runtime_error("Invalid call intermediate representation: too few arguments");
+                        }
+                        // b        func
+                        body << Instruction::BranchInstruction(B, func.getVarName());
+                        if (func.getIrDataType() != IntermediateRepresentation::t_void) {
+                            // has a return value
+                            if (ret.getIrOpType() != IntermediateRepresentation::Null && ret.getIrDataType() != IntermediateRepresentation::t_void) {
+                                // return value will save into a variable
+                                prepare_dest_var(ret);
+                                save_to_stk(r0, ret.getVarName());
+                            }
                         }
                     }
                         break;
