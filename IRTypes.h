@@ -23,44 +23,45 @@ namespace IntermediateRepresentation {
 
     enum IRStmtType {
         BR,         // branching
-        /* br label  label
+        /**
+         * br label  label
          *
          * // conditional branching
          * br <else> %condition, <if true>, <if false>
          * */
 
         ADD,        // addition
-        /*
+        /**
          * add i32  %dest, i32 %opr1, i32 %opr2
          * %dest = %opr1 + %opr2;
          * */
 
         MUL,        // multiplication
-        /*
+        /**
          * mul i32  %dest, i32 %opr1, i32 %opr2
          * %dest = %opr1 * %opr2;
          * */
 
         DIV,        // division
-        /*
+        /**
          * div i32  %dest, i32 %opr1, i32 %opr2
          * %dest = %opr1 / %opr2;
          * */
 
         MOD,        // residue
-        /*
+        /**
          * mov  i32 %dest, i32 %opr1, i32 %opr2
          * %dest = %opr1 % %opr2;
          * */
 
         SUB,        // subtraction
-        /*
+        /**
          * sub i32  %dest, i32 %opr1, i32 %opr2
          * %dest = %opr1 - %opr2;
          * */
 
         CALL,       // function call
-        /*
+        /**
          * call void func <return_var> par1, par2, par3, ...
          *
          * If 'func' returns void, 'return_var' will hold the place but be **ignored** by IRTranslator.
@@ -69,7 +70,7 @@ namespace IntermediateRepresentation {
 
         RETURN,     // return from a function
         ALLOCA,     // allocating stack
-        /*
+        /**
          * alloca i32 %dest;
          * */
 
@@ -87,12 +88,21 @@ namespace IntermediateRepresentation {
         CMP_SLT,    // comparison (signed, less)
         GLB_CONST,  // global constant
         GLB_VAR,    // global variable
-        /*
+        /**
          * (glb_var i32), %dest, i32 <val>
          * */
 
         LSH, RSH,   // bits shifting
-        OR, AND, XOR, NOT // boolean operators
+        OR, AND, XOR, NOT, // boolean operators
+        PHI         // phi function
+        /**
+         * 5 arguments:
+         * phi  <dest_var> [ <varA>, <blockA> ], [ <varB>, <blockB> ]
+         *
+         * where block{ A | B } are **labels** (blocks);
+         * '[', ']' are presented here as semantic separators, and they do **NOT** appear in IR.
+         * Arguments inside a bracket pair denote a variable and the branch jumped from.
+         * */
     };
 
     enum IROpType {
