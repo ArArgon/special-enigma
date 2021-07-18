@@ -126,8 +126,6 @@ namespace IntermediateRepresentation {
         }
     };
 
-    size_t NamingUtil::counter = 0;
-
     class IROperand {
     private:
         IROpType irOpType;
@@ -138,6 +136,47 @@ namespace IntermediateRepresentation {
         bool isPointer = false;
 
     public:
+
+        bool operator<(const IROperand &rhs) const {
+            if (irOpType < rhs.irOpType)
+                return true;
+            if (rhs.irOpType < irOpType)
+                return false;
+            if (irValType < rhs.irValType)
+                return true;
+            if (rhs.irValType < irValType)
+                return false;
+            if (Value < rhs.Value)
+                return true;
+            if (rhs.Value < Value)
+                return false;
+            if (strValue < rhs.strValue)
+                return true;
+            if (rhs.strValue < strValue)
+                return false;
+            if (varName < rhs.varName)
+                return true;
+            if (rhs.varName < varName)
+                return false;
+            return isPointer < rhs.isPointer;
+        }
+
+        bool operator>(const IROperand &rhs) const {
+            return rhs < *this;
+        }
+
+        bool operator<=(const IROperand &rhs) const {
+            return !(rhs < *this);
+        }
+
+        bool operator>=(const IROperand &rhs) const {
+            return !(*this < rhs);
+        }
+
+        bool operator== (const IROperand& b) const {
+            return irOpType == b.irOpType && irValType == b.irValType && Value == b.Value && strValue == b.strValue && varName == b.varName && isPointer == b.isPointer;
+        }
+
         const std::string &getStrValue() const {
             return strValue;
         }
@@ -232,6 +271,7 @@ namespace IntermediateRepresentation {
         auto& operator[] (const size_t pos) {
             return Ops[pos];
         }
+        Statement() = default;
 
         // Label
         explicit Statement(std::string labelName) : stmtType(LABEL), dataType(t_void), label_name(std::move(labelName)) { }
@@ -414,4 +454,5 @@ namespace IntermediateRepresentation {
         }
     };
 }
+
 #endif //SYSYBACKEND_IRTYPES_H

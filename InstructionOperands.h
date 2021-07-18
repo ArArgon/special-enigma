@@ -31,10 +31,17 @@ namespace Instruction::Operands {
 
     public:
         virtual std::string toASM() const = 0;
+        virtual bool isSame(const Operand& opr) const {
+            return this->toASM() == opr.toASM();
+        };
 
         friend std::ostream &operator<<(std::ostream &os, const Operand &operand) {
             os << operand.toASM();
             return os;
+        }
+
+        bool operator== (const Operand& opr2) const {
+            return isSame(opr2);
         }
     };
 

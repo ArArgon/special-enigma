@@ -6,6 +6,7 @@
 #define SYSYBACKEND_IRTRANSLATOR_H
 
 #include <unordered_map>
+#include <memory>
 #include <utility>
 #include <stack>
 #include <set>
@@ -13,6 +14,7 @@
 
 #include "Instruction.h"
 #include "IRTypes.h"
+#include "RegisterAllocation.h"
 
 namespace Backend::Translator {
     // Base class for translator
@@ -20,16 +22,20 @@ namespace Backend::Translator {
     using namespace Instruction::Utilities::Abbr;
     using namespace Instruction;
 
+    constexpr size_t availableRegister = 9;
     bool enable_direct_label_write = false;
 
     class Translator {
     protected:
         IntermediateRepresentation::IRProgram irProgram;
+        Instruction::InstructionStream ans;
 
     public:
         explicit Translator(IntermediateRepresentation::IRProgram irProgram) : irProgram(std::move(irProgram)) { }
         virtual Instruction::InstructionStream doTranslation() = 0;
         virtual ~Translator() = default;
+
+        virtual const Instruction::InstructionStream& getAns() { return ans; }
     };
 
     class SimpleTranslator : public Translator {
@@ -93,16 +99,16 @@ namespace Backend::Translator {
          *
          *      c.  label_type: the type of labels
          *          eg1: label_type['4"] = 0;                   // common label
-         *          eg2: label_type["LB_<funcName>_tmp_1"] = 1;// temporary or direct label
+         *          eg2: label_type["LB_<funcName>_tmp_1"] = 1; // temporary or direct label
          *          eg3: label_type["dest"] = 2;                // static or relative label
-         *          eg4: label_type["LB_GLB_2"] = 1;           // temporary or direct label
-         *          eg5: label_type["LB_STR_1"] = 1;           // temporary or direct label
+         *          eg4: label_type["LB_GLB_2"] = 1;            // temporary or direct label
+         *          eg5: label_type["LB_STR_1"] = 1;            // temporary or direct label
          * */
 
         std::unordered_map<std::string, int> label_type;
         std::unordered_map<std::string, std::string> label_map,     // mapping labels to their modified name
                                                      relative_map;  // mapping static vars to their relative label
-        Instruction::InstructionStream ans, global;
+        Instruction::InstructionStream global;
 
         void appendAns(const InstructionStream& instructionStream) {
             ans.insert(ans.end(), instructionStream.begin(), instructionStream.end());
@@ -302,6 +308,7 @@ namespace Backend::Translator {
                 for (int i = R0; i <= R10; i++)
                     if (cur.getReg() != i)
                         return Operands::Register(static_cast<ARMv7_Register>(i));
+                return r10;
             };
 
             auto save_to_stk = [&] (const Operands::Register& source, const std::string& variable) {
@@ -360,16 +367,16 @@ namespace Backend::Translator {
                 return new_on_stk(varName);
             };
 
-            auto create_cmp_instruction = [&](const auto& source1, const auto& source2) {
+            auto create_cmp_instruction = [&] (const auto& source1, const auto& source2) {
                 switch (source1.getIrOpType()) {
                 case IntermediateRepresentation::ImmVal:
-                    //ERROR
+                    throw std::runtime_error("Invalid IR: cmp source1 must be a variable");
                     break;
                 case IntermediateRepresentation::Var:
                     load_to_reg(r0, source1.getVarName());
                     break;
                 case IntermediateRepresentation::Null:
-                    throw std::runtime_error("Invalid IR: unexpected arguments for ICMP        statement");
+                    throw std::runtime_error("Invalid IR: unexpected arguments for ICMP statement");
                     break;
                 }
                 switch (source2.getIrOpType()) {
@@ -845,6 +852,10 @@ namespace Backend::Translator {
 
                     }
                         break;
+                    case IntermediateRepresentation::PHI: {
+                        
+                    }
+                        break;
                 }
             }
 
@@ -879,6 +890,31 @@ namespace Backend::Translator {
             for (auto & func : functions)
                 processFunction(func);
             return ans;
+        }
+    };
+
+    class TranslatorV2 : public Translator {
+        using ArmRegAllocator = RegisterAllocation::RegisterAllocator<availableRegister>;
+    private:
+        using allocator_t = RegisterAllocation::ColourAllocator<availableRegister>;
+        std::unique_ptr<ArmRegAllocator> allocator = nullptr;
+
+    public:
+        TranslatorV2(IntermediateRepresentation::IRProgram irProgram) : Translator(std::move(irProgram)) { }
+
+        Instruction::InstructionStream doTranslation() override {
+            InstructionStream ins;
+
+            // TODO
+
+            for(const auto& func : irProgram.getFunctions()) {
+                allocator = std::make_unique<allocator_t>(allocator_t (func));
+
+                auto allocation = allocator->getAllocation();
+                auto variables = allocator->getVariables();
+            }
+
+            return ins;
         }
     };
 }
