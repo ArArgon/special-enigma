@@ -11,6 +11,7 @@
 #include <stack>
 #include <set>
 #include <functional>
+#include <type_traits>
 
 #include "Instruction.h"
 #include "IRTypes.h"
@@ -25,20 +26,21 @@ namespace Backend::Translator {
     constexpr size_t availableRegister = 9;
     bool enable_direct_label_write = false;
 
-    class Translator {
+    class TranslatorBase {
     protected:
         IntermediateRepresentation::IRProgram irProgram;
         Instruction::InstructionStream ans;
 
     public:
-        explicit Translator(IntermediateRepresentation::IRProgram irProgram) : irProgram(std::move(irProgram)) { }
+        TranslatorBase() = default;
+        explicit TranslatorBase(IntermediateRepresentation::IRProgram irProgram) : irProgram(std::move(irProgram)) { }
         virtual Instruction::InstructionStream doTranslation() = 0;
-        virtual ~Translator() = default;
+        virtual ~TranslatorBase() = default;
 
         virtual const Instruction::InstructionStream& getAns() { return ans; }
     };
 
-    class SimpleTranslator : public Translator {
+    class SimpleTranslator : public TranslatorBase {
     private:
         /**
          * Label/heap description:
@@ -893,18 +895,21 @@ namespace Backend::Translator {
         }
     };
 
-    class TranslatorV2 : public Translator {
-        using ArmRegAllocator = RegisterAllocation::RegisterAllocator<availableRegister>;
+    template<template<size_t> class Allocator, size_t registerCount>
+    class Translator : public TranslatorBase {
+        static_assert(std::is_base_of<RegisterAllocation::RegisterAllocator<registerCount>, Allocator<registerCount>>(),
+                "Allocator must be a derived class of RegisterAllocation::RegisterAllocator");
+        using ArmRegAllocator = RegisterAllocation::RegisterAllocator<registerCount>;
+        using allocator_t = Allocator<registerCount>;
     private:
-        using allocator_t = RegisterAllocation::ColourAllocator<availableRegister>;
         std::unique_ptr<ArmRegAllocator> allocator = nullptr;
 
     public:
-        TranslatorV2(IntermediateRepresentation::IRProgram irProgram) : Translator(std::move(irProgram)) { }
+        Translator() = default;
+        Translator(IntermediateRepresentation::IRProgram irProgram) : TranslatorBase(std::move(irProgram)) { }
 
         Instruction::InstructionStream doTranslation() override {
             InstructionStream ins;
-
             // TODO
 
             for(const auto& func : irProgram.getFunctions()) {

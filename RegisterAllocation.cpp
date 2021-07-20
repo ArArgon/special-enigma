@@ -2,113 +2,245 @@
 // Created by 廖治平 on 7/18/21.
 //
 
-#include <cassert>
 #include "RegisterAllocation.h"
 
-template<size_t registerCount>
-void Backend::RegisterAllocation::ColourAllocator<registerCount>::analyzeBasicBlocks() {
-    bb_ptr_t currentBlock = std::make_shared<BasicBlock>(BasicBlock());
-    std::unordered_map<std::string, bb_ptr_t> label_map;
 
-    // divide basic blocks
-    auto newBB = [&] (bb_ptr_t& block, bool createAnother = true) {
-        basicBlocks.push_back(block);
-        cfg.newNode(block);
-        if (createAnother)
-            block = std::make_shared<BasicBlock>(BasicBlock());
-    };
-    const auto& seq = baseType::sourceFunc.getStatements();
-    for (const IntermediateRepresentation::Statement& ins : seq) {
-        switch (ins.getStmtType()) {
-            case IntermediateRepresentation::LABEL:
-                label_map[ins.getOps().at(0).getStrValue()] = currentBlock;
-                newBB(currentBlock);
-                currentBlock->appendStatement(ins);
-                break;
-            case IntermediateRepresentation::BR:
-            case IntermediateRepresentation::RETURN:
-                currentBlock->appendStatement(ins);
-                newBB(currentBlock);
-                break;
-            default:
-                currentBlock->appendStatement(ins);
-        }
-    }
-    if (currentBlock != nullptr)
-        newBB(currentBlock, false);
-
-    // build CFG
-    for (const auto& bb : basicBlocks) {
-        // auto& stmts = bb->getStatements();
-        const std::vector<typename BasicBlock::BBStatement>& stmts = bb->getStatements();
-        if (stmts.empty())
-            continue;
-        const IntermediateRepresentation::Statement& stmt = (stmts.end() - 1)->statement;
-        if (stmt.getStmtType() == IntermediateRepresentation::BR) {
-            auto& ops = stmt.getOps();
-            if (ops.size() == 1) {
-                // br label  label
-                auto lbl = ops.at(0);
-                cfg.addEdge(bb, label_map[lbl.getStrValue()]);
-            } else {
-                // br %condition, label1, label2
-                auto lbl1 = ops.at(1), lbl2 = ops.at(2);
-                cfg.addEdge(bb, label_map[lbl1.getStrValue()]);
-                cfg.addEdge(bb, label_map[lbl2.getStrValue()]);
+namespace Backend::RegisterAllocation {
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::coalesce() {
+        auto conservative = [&] (const var_t& u, const var_t& v) {
+            int cnt = 0;
+            auto nodes = Util::set_union(interferenceGraph.getNeighbours(u), interferenceGraph.getNeighbours(v));
+            for (auto& n : nodes) {
+                cnt += interferenceGraph.getNodeDegree(n) >= registerCount;
             }
+            return cnt < registerCount;
+        };
+
+        auto isOk = [&] (const var_t& t, const var_t& r) {
+            return interferenceGraph.getNodeDegree(t) < registerCount || interferenceGraph.containsEdge(t, r);
+        };
+
+        auto addWorkList = [&] (const var_t& u) {
+            if (nodeMoves(u).empty() && interferenceGraph.getNodeDegree(u) < registerCount) {
+                freezeWorklist.erase(u);
+                simplifyWorklist.push_back(u);
+            }
+        };
+
+        auto& m = *workListMoves.begin();
+        workListMoves.erase(workListMoves.begin());
+        auto x = alias.find(m->statement->getOps()[0]), y = alias.find(m->statement->getOps()[1]);
+        if (x == y) {
+            coalescedMoves.insert(m);
+            addWorkList(x);
+        } else {
+            bool ok = true;
+
+            for (auto& suc : interferenceGraph.getNeighbours(y))
+                ok &= isOk(suc, x);
+
+            if (ok && conservative(x, y)) {
+                coalescedMoves.insert(m);
+                combine(x, y);
+                addWorkList(x);
+            } else
+                activeMoves.insert(m);
         }
     }
-}
 
-template<size_t registerCount>
-void Backend::RegisterAllocation::ColourAllocator<registerCount>::analyzeLiveness() {
-    // calc live sets for basic blocks
-    using varSet = std::set<IntermediateRepresentation::IROperand>;
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::buildIntGraph() {
+        auto isMoveRelated = [] (const std::shared_ptr<Backend::Flow::BasicBlock::BBStatement>& statement) -> bool {
+            return statement->statement->getStmtType() == IntermediateRepresentation::MOV;
+        };
 
-    auto set_diff = [] (const varSet& a, const varSet& b) {
-        // return a - b;
-        varSet ans;
-        std::set_difference(a.begin(), a.end(), b.begin(), b.end(), ans.begin());
-        return ans;
-    };
+        moveList.clear();
+        workListMoves.clear();
 
-    bool change = true;
-
-    while (change) {
-        change = false;
         for (auto& bb : basicBlocks) {
-            varSet tmpLiveIn = bb->getUse();
-            auto&& successors = cfg.getSuccessor(bb);
+            auto live = bb->liveOut;
+            auto& statements = bb->statements;
+            for (int i = static_cast<int>(statements.size()) - 1; i >= 0; i--) {
+                auto&& ins = is_t {&statements[i] };
+                if (isMoveRelated(ins)) {
+                    live = Util::set_diff(live, ins->use);
+                    for (auto& node : ins->use)
+                        moveList[node].insert(ins);
+                    workListMoves.insert(ins);
+                }
+                Util::set_union_to(live, ins->def);
+                for (auto& def : ins->def)
+                    for (auto& liv : live)
+                        interferenceGraph.addBiEdge(def, liv);
 
-            for (const bb_ptr_t& suc : successors) {
-                // LiveOut[bb] U= LiveIn[suc]
-                auto& sucLiveIn = suc->getLiveIn();
-                bb->liveOut.insert(sucLiveIn.begin(), sucLiveIn.end());
+                live = Util::set_union(ins->use, Util::set_diff(live, ins->def));
             }
-
-            // LiveIn[bb] = use[bb] U ( LiveOut[bb] - def[bb] )
-            tmpLiveIn += set_diff(bb->getLiveOut(), bb->getDef());
-            change = tmpLiveIn != bb->getLiveIn();
-            if (change)
-                bb->setLiveIn(tmpLiveIn);
         }
     }
 
-    // liveness of every statement (inside every basic block)
-    for (auto& bb : basicBlocks) {
-        auto& stmts = bb->statements;
-        int size = static_cast<int>(stmts.size());
-        if (!size)
-            continue;
-        stmts[size - 1].live = stmts[size - 1].use + set_diff(bb->getLiveOut(), stmts[size - 1].def);
-        for (int i = size - 2; i >= 0; i--) {
-            auto &cur = stmts[i], &last = stmts[i - 1];
-            cur.live = set_diff(last.live, cur.def) + cur.use;
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::rewriteFunction() {
+        /*
+         * TODO: For each spilled nodes, create new temporary vi for each definition and each use
+         * */
+        spilledNodes.clear();
+        initial = coloredNodes;
+
+        coloredNodes.clear();
+        coalescedNodes.clear();
+    }
+
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::simplify() {
+        auto node = simplifyWorklist.front();
+        simplifyWorklist.pop_front();
+        selectStack.push(node);
+        auto&& neighbours = interferenceGraph.getNeighbours(node);
+        for (auto& suc : neighbours) {
+            decrementDegree(suc);
         }
     }
-}
 
-template<size_t registerCount>
-void Backend::RegisterAllocation::ColourAllocator<registerCount>::coalesce() {
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::decrementDegree(const ColourAllocator::var_t& node) {
+        size_t degree = interferenceGraph.getNodeDegree(node);
+        interferenceGraph.setNodeDegree(node, degree - 1);
+        if (degree == registerCount) {
+            // EnableMoves
+            enableMoves(node);
+            spillWorklist.insert(node);  // TODO ?
+            if (!moveList[node].empty())
+                freezeWorklist.insert(node);
+            else
+                simplifyWorklist.push_back(node);
+        }
+    }
+
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::enableMoves(const ColourAllocator::var_t& node) {
+        std::set<var_t> nodes = interferenceGraph.getNeighbours(node);
+        nodes.insert(node);
+
+        for (auto& n : nodes) {
+            for (auto& m : nodeMoves(n)) {
+                if (activeMoves.count(m)) {
+                    activeMoves.erase(m);
+                    workListMoves.insert(m);
+                }
+            }
+        }
+    }
+
+    template<size_t registerCount>
+    std::set<std::shared_ptr<Flow::BasicBlock::BBStatement>> ColourAllocator<registerCount>::nodeMoves(const ColourAllocator::var_t & node) {
+        std::set<is_t> ans;
+        for (auto& move : moveList[node]) {
+            if (activeMoves.count(move) + workListMoves.count(move))
+                ans.insert(move);
+        }
+        return ans;
+    }
+
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::buildWorkLists() {
+        for (auto& n : initial) {
+            if (interferenceGraph.getNodeDegree(n) >= registerCount) {
+                spillWorklist.insert(n);
+            } else if (moveList.count(n)) {
+                freezeWorklist.insert(n);
+            } else {
+                simplifyWorklist.push_back(n);
+            }
+        }
+    }
+
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::assignColours() {
+        while (!selectStack.empty()) {
+            auto& n = selectStack.top();
+            std::set<size_t> okColours;
+            for (size_t i = 0; i < registerCount; i++)
+                okColours.insert(i);
+
+            selectStack.pop();
+            for (auto& w : interferenceGraph.getNeighbours(n)) {
+                okColours.erase(colour[alias.find(w)]);
+            }
+            // No colours left
+            if (okColours.empty())
+                spilledNodes.insert(n);
+            else {
+                // colour this node
+                coloredNodes.insert(n);
+                colour[n] = *okColours.begin();
+            }
+        }
+    }
+
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::freeze() {
+        auto& u = *freezeWorklist.begin();
+        freezeWorklist.erase(freezeWorklist.begin());
+        simplifyWorklist.push_back(u);
+        freezeMoves(u);
+    }
+
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::freezeMoves(const var_t& u) {
+        auto&& moves = nodeMoves(u);
+        for (auto& m : moves) {
+            auto&& ops = m->statement->getOps();
+            int pos = ops[0] != u;
+            if (activeMoves.count(m))
+                activeMoves.erase(m);
+            else
+                workListMoves.erase(m);
+            frozenMoves.insert(m);
+            if (nodeMoves(ops[1 - pos]).empty() && interferenceGraph.getNodeDegree(ops[1 - pos]) < registerCount) {
+                freezeWorklist.erase(ops[1 - pos]);
+                simplifyWorklist.push_back(ops[1 - pos]);
+            }
+        }
+    }
+
+    /**
+     * Choose a move to spill
+     * */
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::selectSpill() {
+        // TODO: this function can be optimized
+        /*
+         * Select an ideal move from spillWorkList
+         * */
+        auto& m = *spillWorklist.begin(); // this is not optimized
+        spillWorklist.erase(spillWorklist.begin());
+        simplifyWorklist.push_back(m);
+        freezeMoves(m);
+
+    }
+
+    template<size_t registerCount>
+    void ColourAllocator<registerCount>::combine(const ColourAllocator::var_t &u, const ColourAllocator::var_t &v) {
+        if (freezeWorklist.count(v))
+            freezeWorklist.erase(v);
+        else
+            spillWorklist.erase(v);
+        coalescedNodes.insert(v);
+        int ret = alias.disjoint(v, u);
+        /*
+         * Could rewrite if depth is enabled
+         * */
+        Util::set_union_to(moveList[u], moveList[v]);
+        auto&& adj = interferenceGraph.getNeighbours(v);
+        for (auto& t : adj) {
+            interferenceGraph.addBiEdge(t, u);
+            decrementDegree(t);
+        }
+        if (interferenceGraph.getNodeDegree(u) >= registerCount && freezeWorklist.count(u)) {
+            freezeWorklist.erase(u);
+            spillWorklist.insert(u);
+        }
+    }
 
 }

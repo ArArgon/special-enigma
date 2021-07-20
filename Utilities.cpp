@@ -12,6 +12,8 @@ namespace Backend::Util {
         if (!containsNode(b))
             newNode(b);
         size_t id_a = nodeToId[a], id_b = nodeToId[b];
+        adjSet.template emplace(a, b);
+        degree[a]++;
         G[id_a].insert(id_b);
     }
 
@@ -22,7 +24,7 @@ namespace Backend::Util {
     }
 
     template<class NodeType>
-    std::set<NodeType> Graph<NodeType>::getSuccessor(const NodeType &node) {
+    std::set<NodeType> Graph<NodeType>::getNeighbours(const NodeType &node) {
         std::set<NodeType> ans;
         size_t id = nodeToId[node];
 
@@ -50,52 +52,21 @@ namespace Backend::Util {
         nodeToId[id] = node;
         idToNode[node] = id;
         degree[id] = 0;
+        nodes.insert(node);
     }
 
-    BasicBlock::BBStatement BasicBlock::procRawStatement(
-            const IntermediateRepresentation::Statement &stmt) {
-        BasicBlock::BBStatement ans;
-        ans.statement = stmt;
+    template<class NodeType>
+    void Graph<NodeType>::setNodeDegree(const NodeType &node, size_t value) {
+        degree[node] = value;
+    }
 
-        switch (stmt.getStmtType()) {
-            case IntermediateRepresentation::ADD:
-            case IntermediateRepresentation::MUL:
-            case IntermediateRepresentation::DIV:
-            case IntermediateRepresentation::MOD:
-            case IntermediateRepresentation::SUB: {
-                /*
-                * opr %dest, %opr1, %opr2
-                * */
-            }
-                break;
-            case IntermediateRepresentation::CALL:
-                break;
-            case IntermediateRepresentation::RETURN:
-                break;
-            case IntermediateRepresentation::ALLOCA:
-                break;
-            case IntermediateRepresentation::CMP_EQ:
-            case IntermediateRepresentation::CMP_NE:
-            case IntermediateRepresentation::CMP_UGE:
-            case IntermediateRepresentation::CMP_ULE:
-            case IntermediateRepresentation::CMP_SGE:
-            case IntermediateRepresentation::CMP_SLE:
-            case IntermediateRepresentation::CMP_SGT:
-            case IntermediateRepresentation::CMP_SLT:
-                break;
+    template<class NodeType>
+    const std::unordered_set<NodeType> &Graph<NodeType>::getNodes() const {
+        return nodes;
+    }
 
-            case IntermediateRepresentation::LSH:
-            case IntermediateRepresentation::RSH:
-            case IntermediateRepresentation::OR:
-            case IntermediateRepresentation::AND:
-            case IntermediateRepresentation::XOR:
-            case IntermediateRepresentation::NOT:
-            case IntermediateRepresentation::PHI:
-                break;
-            default:
-                break;
-        }
-
-        return ans;
+    template<class NodeType>
+    bool Graph<NodeType>::containsEdge(const NodeType &a, const NodeType &b) {
+        return adjSet.template count({ a, b });
     }
 }

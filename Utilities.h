@@ -9,74 +9,12 @@
 #include <unordered_set>
 #include <memory>
 #include <functional>
+#include <type_traits>
 #include <map>
 #include <set>
 #include "IRTypes.h"
 
 namespace Backend::Util {
-    class BasicBlock {
-    public:
-        using varSet = std::set<IntermediateRepresentation::IROperand>;
-        struct BBStatement {
-            IntermediateRepresentation::Statement statement;
-            varSet def, use, live;
-        };
-    private:
-        varSet def, use;
-
-        static BBStatement procRawStatement(const IntermediateRepresentation::Statement& stmt);
-
-    public:
-        std::vector<BBStatement> statements;
-        varSet liveIn, liveOut;
-
-        BasicBlock() = default;
-
-        explicit BasicBlock(const IntermediateRepresentation::IRSequence& sequence) {
-            for (auto& ins : sequence)
-                appendStatement(ins);
-        }
-
-        void appendStatement(const IntermediateRepresentation::Statement& statement) {
-            BBStatement tmpStmt = procRawStatement(statement);
-            for (auto& var : tmpStmt.use) {
-                if (!def.count(var)) {
-                    // this variable is used and not reassigned in this BB before.
-                    use.insert(var);
-                }
-            }
-            def.insert(tmpStmt.def.begin(), tmpStmt.def.end());
-            statements.push_back(tmpStmt);
-        }
-
-        const varSet &getDef() const {
-            return def;
-        }
-
-        const varSet &getUse() const {
-            return use;
-        }
-
-        const varSet &getLiveIn() const {
-            return liveIn;
-        }
-
-        const varSet &getLiveOut() const {
-            return liveOut;
-        }
-
-        void setLiveIn(const varSet &liveIn) {
-            BasicBlock::liveIn = liveIn;
-        }
-
-        void setLiveOut(const varSet &liveOut) {
-            BasicBlock::liveOut = liveOut;
-        }
-
-        const std::vector<BBStatement> &getStatements() const {
-            return statements;
-        }
-    };
 
     template<class NodeType>
     class Graph {
@@ -84,9 +22,11 @@ namespace Backend::Util {
 
         size_t cnt = 0;
         std::vector<std::unordered_set<size_t>> G;
+        std::unordered_set<NodeType> nodes;
         std::unordered_map<NodeType, int> nodeToId;
         std::unordered_map<int, NodeType> idToNode;
         std::unordered_map<size_t, int> degree;
+        std::set<std::pair<NodeType, NodeType>> adjSet;
 
     public:
         Graph() {
@@ -99,6 +39,8 @@ namespace Backend::Util {
                 newNode(node);
         }
 
+        bool containsEdge(const NodeType& a, const NodeType& b);
+
         void newNode(const NodeType& node);
 
         bool containsNode(const NodeType& node);
@@ -109,8 +51,106 @@ namespace Backend::Util {
 
         size_t getNodeDegree(const NodeType& node) const;
 
-        std::set<NodeType> getSuccessor(const NodeType& node);
+        void setNodeDegree(const NodeType &node, size_t value);
+
+        std::set<NodeType> getNeighbours(const NodeType& node);
+
+        const std::unordered_set<NodeType> &getNodes() const;
+
+        template<class T>
+        void doFunc(const T& func) {
+            func(this);
+        }
+
     };
+
+    template<class NodeType, bool enableDepth = true>
+    class DisjointSet {
+        int cnt = 0;
+        std::unordered_map<NodeType, int> nodeToId;
+        std::unordered_map<int, NodeType> idToNode;
+        std::unordered_map<int, int> depth;
+        std::unordered_map<int, int> fa;
+
+        int idFind(int u) {
+            return fa[u] == u ? u : fa[u] = find(fa[u]);
+        }
+
+    public:
+        NodeType find(const NodeType& u) {
+            int id = nodeToId[u];
+            return idToNode[idFind(id)];
+        }
+
+        int disjoint(const NodeType& u, const NodeType& v) {
+            int idu = find(u), idv = find(v);
+            if (idu != idv) {
+                if (enableDepth) {
+                    if (depth[idu] > depth[idv]) {
+                        fa[idu] = idv;
+                        return 1;
+                    } else {
+                        if (depth[idu] == depth[idv])
+                            depth[idu]++;
+                        fa[idv] = idu;
+                        return 2;
+                    }
+                } else {
+                    fa[idu] = idv;
+                    return 1;
+                }
+            }
+            return 0;
+        }
+
+        void addNode(const NodeType& u) {
+            if (contains(u))
+                return;
+            int id = ++cnt;
+            nodeToId[u] = id;
+            idToNode[id] = u;
+            fa[id] = id;
+            if (enableDepth)
+                depth[id] = 1;
+        }
+
+        bool contains(const NodeType& u) {
+            return nodeToId.count(u) != 0;
+        }
+
+        DisjointSet() = default;
+
+        DisjointSet(const std::set<NodeType>& nodes) {
+            for (auto& node : nodes)
+                addNode(node);
+        }
+
+        DisjointSet(const std::unordered_set<NodeType>& nodes) {
+            for (auto& node : nodes)
+                addNode(node);
+        }
+    };
+
+    template<class Set>
+    inline auto set_diff (const Set& a, const Set& b) {
+        // return a - b;
+        Set ans;
+        std::set_difference(a.begin(), a.end(), b.begin(), b.end(), std::inserter(ans, ans.begin()));
+        return ans;
+    }
+
+    template<class Set>
+    inline auto set_union_to (Set& target, const Set& b) {
+        target.insert(b.begin(), b.end());
+    }
+
+    template<class Set>
+    inline auto set_union (const Set& a, const Set& b) {
+        Set ans = a;
+        ans.insert(b.begin(), b.end());
+        return ans;
+    }
+
 }
 
 #endif //SYSYBACKEND_UTILITIES_H

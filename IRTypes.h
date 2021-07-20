@@ -74,6 +74,11 @@ namespace IntermediateRepresentation {
          * alloca i32 %dest;
          * */
 
+        MOV,        // move or assign. %source is not allowed in SSA form
+        /*
+         * mov i32 %dest, i32 %source
+         * mov i32 %dest, i32 <imm>
+         * */
 
         LABEL,      // label
         LOAD,       // load to variable
@@ -136,29 +141,13 @@ namespace IntermediateRepresentation {
         bool isPointer = false;
 
     public:
+        std::string toString() const {
+            return std::to_string(irOpType) + "#" + std::to_string(irValType) + "#" +
+                   std::to_string(Value) + "#" + strValue + "#" + varName + "#" + std::to_string(isPointer);
+        }
 
         bool operator<(const IROperand &rhs) const {
-            if (irOpType < rhs.irOpType)
-                return true;
-            if (rhs.irOpType < irOpType)
-                return false;
-            if (irValType < rhs.irValType)
-                return true;
-            if (rhs.irValType < irValType)
-                return false;
-            if (Value < rhs.Value)
-                return true;
-            if (rhs.Value < Value)
-                return false;
-            if (strValue < rhs.strValue)
-                return true;
-            if (rhs.strValue < strValue)
-                return false;
-            if (varName < rhs.varName)
-                return true;
-            if (rhs.varName < varName)
-                return false;
-            return isPointer < rhs.isPointer;
+            return toString() < rhs.toString();
         }
 
         bool operator>(const IROperand &rhs) const {
@@ -174,7 +163,7 @@ namespace IntermediateRepresentation {
         }
 
         bool operator== (const IROperand& b) const {
-            return irOpType == b.irOpType && irValType == b.irValType && Value == b.Value && strValue == b.strValue && varName == b.varName && isPointer == b.isPointer;
+            return toString() == b.toString();
         }
 
         const std::string &getStrValue() const {
@@ -387,6 +376,10 @@ namespace IntermediateRepresentation {
         }
 
         const std::vector<Statement> &getStatements() const {
+            return statements;
+        }
+
+        auto &getRefStatements() {
             return statements;
         }
 
