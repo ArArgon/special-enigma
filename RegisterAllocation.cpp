@@ -267,15 +267,31 @@ namespace Backend::RegisterAllocation {
      * */
     template<size_t registerCount>
     void ColourAllocator<registerCount>::selectSpill() {
-        // TODO: this function can be optimized
         /*
          * Select an ideal move from spillWorkList
          * */
-        auto& m = *spillWorklist.begin(); // this is not optimized
-        spillWorklist.erase(spillWorklist.begin());
+        double minCost = 1e10;
+        bool hasCandidate = false;
+        auto opt = spillWorklist.begin();
+        for (auto it = spillWorklist.begin(); it != spillWorklist.end(); it++) {
+            // cost = weight / degree
+            double cost = weight[*it] / interferenceGraph.getNodeDegree(*it);
+            // TODO imm
+            if (!spillTemp.count(*it)) {
+                hasCandidate = true;
+                if (cost < minCost) {
+                    minCost = cost;
+                    opt = it;
+                }
+            } else if (!hasCandidate) {
+                opt = it;
+            }
+        }
+
+        auto& m = *opt;
+        spillWorklist.erase(opt);
         simplifyWorklist.push_back(m);
         freezeMoves(m);
-
     }
 
     /*

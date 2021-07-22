@@ -35,7 +35,7 @@ namespace Backend::Translator {
         TranslatorBase() = default;
         explicit TranslatorBase(IntermediateRepresentation::IRProgram irProgram) : irProgram(std::move(irProgram)) { }
         virtual Instruction::InstructionStream doTranslation() = 0;
-        virtual ~TranslatorBase() = default;
+        virtual ~TranslatorBase() = 0;
 
         virtual const Instruction::InstructionStream& getAns() { return ans; }
     };
@@ -902,7 +902,7 @@ namespace Backend::Translator {
         using ArmRegAllocator = RegisterAllocation::RegisterAllocator<registerCount>;
         using allocator_t = Allocator<registerCount>;
     private:
-        std::unique_ptr<ArmRegAllocator> allocator = nullptr;
+        std::unique_ptr<ArmRegAllocator> allocator;
 
     public:
         Translator() = default;

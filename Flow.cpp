@@ -65,23 +65,6 @@ namespace Backend::Flow {
         // calc live sets for basic blocks
         using varSet = std::set<IntermediateRepresentation::IROperand>;
 
-//        auto set_diff = [] (const varSet& a, const varSet& b) {
-//            // return a - b;
-//            varSet ans;
-//            std::set_difference(a.begin(), a.end(), b.begin(), b.end(), std::inserter(ans, ans.begin()));
-//            return ans;
-//        };
-//
-//        auto set_union_to = [] (varSet& target, const varSet& b) {
-//            target.insert(b.begin(), b.end());
-//        };
-//
-//        auto set_union = [] (const varSet& a, const varSet& b) {
-//            varSet ans = a;
-//            ans.insert(b.begin(), b.end());
-//            return ans;
-//        };
-
         bool change = true;
 
         while (change) {
@@ -123,7 +106,7 @@ namespace Backend::Flow {
             IntermediateRepresentation::Statement &stmt) {
         BasicBlock::BBStatement ans;
         ans.statement = std::shared_ptr<IntermediateRepresentation::Statement> (&stmt);
-
+        // TODO process statement
         switch (stmt.getStmtType()) {
             case IntermediateRepresentation::ADD:
             case IntermediateRepresentation::MUL:

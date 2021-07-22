@@ -25,6 +25,7 @@ namespace Backend::Util {
         std::unordered_set<NodeType> nodes;
         std::unordered_map<NodeType, int> nodeToId;
         std::unordered_map<int, NodeType> idToNode;
+        std::unordered_map<int, std::unordered_set<int>> precursors, successors;
         std::unordered_map<size_t, int> degree;
         std::set<std::pair<NodeType, NodeType>> adjSet;
 
@@ -56,6 +57,10 @@ namespace Backend::Util {
         std::set<NodeType> getNeighbours(const NodeType& node);
 
         const std::unordered_set<NodeType> &getNodes() const;
+
+        std::unordered_set<NodeType> getPrecursorsOf(const NodeType& node) const;
+
+        std::unordered_set<NodeType> getSuccessorsOf(const NodeType& node) const;
 
         template<class T>
         void doFunc(const T& func) {

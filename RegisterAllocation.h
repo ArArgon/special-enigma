@@ -27,12 +27,12 @@ namespace Backend::RegisterAllocation {
     class RegisterAllocator {
     protected:
         std::shared_ptr<IntermediateRepresentation::Function> sourceFunc;
-        std::map<IntermediateRepresentation::IROperand, int> allocation;
+        std::map<IntermediateRepresentation::IROperand, size_t> allocation;
         std::set<IntermediateRepresentation::IROperand> variables;
         virtual void doFunctionScan() = 0;
     public:
 
-        ~RegisterAllocator() = default;
+        virtual ~RegisterAllocator() = 0;
         explicit RegisterAllocator(std::shared_ptr<IntermediateRepresentation::Function> func) : sourceFunc(std::move(func)) { };
         RegisterAllocator() = default;
         const auto& getAllocation() { return allocation; }
@@ -60,8 +60,9 @@ namespace Backend::RegisterAllocation {
         std::shared_ptr<Flow::Flow> flowAnalyzer = nullptr;
         std::unordered_map<var_t, std::unordered_set<is_t>> moveList;
         std::unordered_map<var_t, size_t> colour; // TODO
+        std::unordered_map<var_t, double> weight;
         std::unordered_set<is_t> workListMoves, activeMoves, frozenMoves, constrainedMoves, coalescedMoves;
-        std::unordered_set<var_t> spilledNodes, spillWorklist, coloredNodes, coalescedNodes, freezeWorklist, initial, preColoured;
+        std::unordered_set<var_t> spilledNodes, spillWorklist, coloredNodes, coalescedNodes, freezeWorklist, initial, preColoured, spillTemp;
         std::list<var_t> simplifyWorklist;
         std::stack<var_t> selectStack;
         Util::DisjointSet<var_t> alias;
@@ -118,8 +119,20 @@ namespace Backend::RegisterAllocation {
             // build initial & alias
             alias = Util::DisjointSet<var_t> { interferenceGraph.getNodes() };
             initial = interferenceGraph.getNodes();
-        }
+            initial = Util::set_diff(initial, preColoured);
 
+            // calculate weight
+            for (auto& block : basicBlocks) {
+                // 10 ^ min(count_of(precursors), count_of(succesors))
+                double curWeight = std::pow(10.0, std::min(cfg.getPrecursorsOf(block).size(), cfg.getSuccessorsOf(block).size()));
+                auto&& statements = block->getStatements();
+                for (auto& ins : statements) {
+                    auto&& variables = Util::set_union(ins.use, ins.def);
+                    for (auto& var : variables)
+                        weight[var] += curWeight;
+                }
+            }
+        }
 
         /*
          * Logic check: pass
@@ -157,7 +170,16 @@ namespace Backend::RegisterAllocation {
     public:
 
         explicit ColourAllocator(IntermediateRepresentation::Function& func) :
-        baseType::RegisterAllocator(decltype(baseType::sourceFunc) (&func)) { }
+        baseType::RegisterAllocator(decltype(baseType::sourceFunc) (&func)) {
+            // load pre-colour
+            auto& params = func.getParameters();
+            for (auto& param : params)
+                preColoured.insert(param);
+
+            doFunctionScan();
+            baseType::variables = interferenceGraph.getNodes();
+            baseType::allocation = colour;
+        }
     };
 
 }
