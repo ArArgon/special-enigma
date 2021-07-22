@@ -93,7 +93,7 @@ namespace Backend::Flow {
 
     public:
 
-        explicit Flow(IntermediateRepresentation::Function& sourceFunc) : sourceFunc(&sourceFunc) {
+        explicit Flow(std::shared_ptr<IntermediateRepresentation::Function> sourceFunc) : sourceFunc(std::move(sourceFunc)) {
             analyzeBasicBlocks();
             analyzeLiveness();
         }

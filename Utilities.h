@@ -153,4 +153,12 @@ namespace Backend::Util {
 
 }
 
+template<>
+class std::hash<IntermediateRepresentation::IROperand> {
+public:
+    size_t operator() (const IntermediateRepresentation::IROperand& operand) const {
+        return std::hash<std::string> { }(operand.toString());
+    }
+};
+
 #endif //SYSYBACKEND_UTILITIES_H

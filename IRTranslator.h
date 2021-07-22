@@ -906,13 +906,13 @@ namespace Backend::Translator {
 
     public:
         Translator() = default;
-        Translator(IntermediateRepresentation::IRProgram irProgram) : TranslatorBase(std::move(irProgram)) { }
+        explicit Translator(IntermediateRepresentation::IRProgram irProgram) : TranslatorBase(std::move(irProgram)) { }
 
         Instruction::InstructionStream doTranslation() override {
             InstructionStream ins;
             // TODO
-
-            for(const auto& func : irProgram.getFunctions()) {
+            auto functions = irProgram.getFunctions();
+            for(auto& func : functions) {
                 allocator = std::make_unique<allocator_t>(allocator_t (func));
 
                 auto allocation = allocator->getAllocation();

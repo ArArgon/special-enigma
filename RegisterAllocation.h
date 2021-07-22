@@ -26,14 +26,14 @@ namespace Backend::RegisterAllocation {
     template<size_t registerCount>
     class RegisterAllocator {
     protected:
-        IntermediateRepresentation::Function sourceFunc;
+        std::shared_ptr<IntermediateRepresentation::Function> sourceFunc;
         std::map<IntermediateRepresentation::IROperand, int> allocation;
         std::set<IntermediateRepresentation::IROperand> variables;
         virtual void doFunctionScan() = 0;
     public:
 
         ~RegisterAllocator() = default;
-        explicit RegisterAllocator(IntermediateRepresentation::Function func) : sourceFunc(std::move(func)) { };
+        explicit RegisterAllocator(std::shared_ptr<IntermediateRepresentation::Function> func) : sourceFunc(std::move(func)) { };
         RegisterAllocator() = default;
         const auto& getAllocation() { return allocation; }
         const auto& getVariables() { return variables; }
@@ -51,10 +51,9 @@ namespace Backend::RegisterAllocation {
         using bb_t = Flow::bb_ptr_t;
         using is_t = std::shared_ptr<Flow::BasicBlock::BBStatement>;
         using var_t = IntermediateRepresentation::IROperand;
-        using BasicBlock = Flow::BasicBlock;
         using InterferenceGraph = Util::Graph<var_t>;
 
-        std::shared_ptr<IntermediateRepresentation::Function> func;
+//        std::shared_ptr<IntermediateRepresentation::Function> func;
         std::vector<bb_t> basicBlocks;
         Flow::ControlFlowGraph cfg;
         InterferenceGraph interferenceGraph;
@@ -62,7 +61,7 @@ namespace Backend::RegisterAllocation {
         std::unordered_map<var_t, std::unordered_set<is_t>> moveList;
         std::unordered_map<var_t, size_t> colour; // TODO
         std::unordered_set<is_t> workListMoves, activeMoves, frozenMoves, constrainedMoves, coalescedMoves;
-        std::unordered_set<var_t> spilledNodes, spillWorklist, coloredNodes, coalescedNodes, freezeWorklist, initial;
+        std::unordered_set<var_t> spilledNodes, spillWorklist, coloredNodes, coalescedNodes, freezeWorklist, initial, preColoured;
         std::list<var_t> simplifyWorklist;
         std::stack<var_t> selectStack;
         Util::DisjointSet<var_t> alias;
@@ -95,7 +94,7 @@ namespace Backend::RegisterAllocation {
 
         void init() {
             // flow analysis
-            flowAnalyzer = std::make_shared<Flow::Flow>(Flow::Flow(func));
+            flowAnalyzer = std::make_shared<Flow::Flow>(Flow::Flow { baseType::sourceFunc });
             cfg = flowAnalyzer->getCfg();
             basicBlocks = flowAnalyzer->getBasicBlocks();
 
@@ -116,46 +115,49 @@ namespace Backend::RegisterAllocation {
             constrainedMoves.clear();
             frozenMoves.clear();
             activeMoves.clear();
-            // build initial
+            // build initial & alias
             alias = Util::DisjointSet<var_t> { interferenceGraph.getNodes() };
             initial = interferenceGraph.getNodes();
         }
 
-        void doAllocation() {
-            init();
 
-            // build interference graph
-            buildIntGraph();
+        /*
+         * Logic check: pass
+         * */
+        void doFunctionScan() override {
+            while(true) {
+                init();
 
-            // init work lists
-            buildWorkLists();
+                // build interference graph
+                buildIntGraph();
 
-            do {
-                if (!simplifyWorklist.empty())
-                    simplify();
-                if (!workListMoves.empty())
-                    coalesce();
-                if (!freezeWorklist.empty())
-                    freeze();
-                if (!spillWorklist.empty())
-                    selectSpill();
-            } while (!(
-                    simplifyWorklist.empty() && workListMoves.empty() &&
-                    freezeWorklist.empty() && spillWorklist.empty()
-            ));
-            assignColours();
-            if (!spilledNodes.empty()) {
+                // init work lists
+                buildWorkLists();
+
+                do {
+                    if (!simplifyWorklist.empty())
+                        simplify();
+                    if (!workListMoves.empty())
+                        coalesce();
+                    if (!freezeWorklist.empty())
+                        freeze();
+                    if (!spillWorklist.empty())
+                        selectSpill();
+                } while (!(
+                        simplifyWorklist.empty() && workListMoves.empty() &&
+                        freezeWorklist.empty() && spillWorklist.empty()
+                ));
+                assignColours();
+                if (spilledNodes.empty())
+                    break;
                 rewriteFunction();
-                doAllocation();
             }
         }
 
     public:
 
-        explicit ColourAllocator(IntermediateRepresentation::Function& func) : baseType::RegisterAllocator(func),
-                                                                                     func(&func) {
-            doAllocation();
-        }
+        explicit ColourAllocator(IntermediateRepresentation::Function& func) :
+        baseType::RegisterAllocator(decltype(baseType::sourceFunc) (&func)) { }
     };
 
 }

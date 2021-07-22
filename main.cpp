@@ -44,7 +44,7 @@ int main() {
     IntermediateRepresentation::Function function("Test");
     IntermediateRepresentation::Statement statement(IntermediateRepresentation::ADD, IntermediateRepresentation::i32, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 32));
     using namespace IntermediateRepresentation;
-    auto &&translator = (Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocator, Backend::Translator::availableRegister>());
+    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocator, Backend::Translator::availableRegister>();
 
     function.insert(statement, Statement(ALLOCA, i32, IROperand(i32, 132), IROperand(i32, "5")));
     function << statement << Statement(CMP_EQ, i32, IROperand(i32, 102), IROperand(i32, "0a"));

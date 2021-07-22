@@ -141,6 +141,11 @@ namespace IntermediateRepresentation {
         bool isPointer = false;
 
     public:
+
+        size_t operator() (const IROperand& operand) const {
+            return std::hash<std::string> { }(operand.toString());
+        }
+
         std::string toString() const {
             return std::to_string(irOpType) + "#" + std::to_string(irValType) + "#" +
                    std::to_string(Value) + "#" + strValue + "#" + varName + "#" + std::to_string(isPointer);
