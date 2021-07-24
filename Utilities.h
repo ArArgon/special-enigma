@@ -69,7 +69,7 @@ namespace Backend::Util {
 
     };
 
-    template<class NodeType, bool enableDepth = true>
+    template<class NodeType, bool enableDepth = false>
     class DisjointSet {
         int cnt = 0;
         std::unordered_map<NodeType, int> nodeToId;
@@ -137,7 +137,7 @@ namespace Backend::Util {
     };
 
     template<class Set>
-    inline auto set_diff (const Set& a, const Set& b) {
+    inline auto set_diff(const Set& a, const Set& b) {
         // return a - b;
         Set ans;
         std::set_difference(a.begin(), a.end(), b.begin(), b.end(), std::inserter(ans, ans.begin()));
@@ -145,12 +145,12 @@ namespace Backend::Util {
     }
 
     template<class Set>
-    inline auto set_union_to (Set& target, const Set& b) {
+    inline auto set_union_to(Set& target, const Set& b) {
         target.insert(b.begin(), b.end());
     }
 
     template<class Set>
-    inline auto set_union (const Set& a, const Set& b) {
+    inline auto set_union(const Set& a, const Set& b) {
         Set ans = a;
         ans.insert(b.begin(), b.end());
         return ans;

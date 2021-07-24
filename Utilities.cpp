@@ -7,14 +7,17 @@
 namespace Backend::Util {
     template<class NodeType>
     void Graph<NodeType>::addEdge(const NodeType& a, const NodeType& b)  {
+        // a -> b
         if (!containsNode(a))
             newNode(a);
         if (!containsNode(b))
             newNode(b);
-        size_t id_a = nodeToId[a], id_b = nodeToId[b];
+        int id_a = nodeToId[a], id_b = nodeToId[b];
         adjSet.template emplace(a, b);
         degree[a]++;
         G[id_a].insert(id_b);
+        precursors[id_b].insert(id_a);
+        successors[id_a].insert(id_b);
     }
 
     template<class NodeType>
@@ -68,5 +71,25 @@ namespace Backend::Util {
     template<class NodeType>
     bool Graph<NodeType>::containsEdge(const NodeType &a, const NodeType &b) {
         return adjSet.template count({ a, b });
+    }
+
+    template<class NodeType>
+    std::unordered_set<NodeType> Graph<NodeType>::getPrecursorsOf(const NodeType &node) const {
+        std::unordered_set<NodeType> ans;
+        int id_n = nodeToId.at(node);
+        auto& n_pre = successors.at(id_n);
+        for (auto& pre : n_pre)
+            ans.insert(idToNode.at(pre));
+        return ans;
+    }
+
+    template<class NodeType>
+    std::unordered_set<NodeType> Graph<NodeType>::getSuccessorsOf(const NodeType &node) const {
+        std::unordered_set<NodeType> ans;
+        int id_n = nodeToId.at(node);
+        auto& n_suc = successors.at(id_n);
+        for (auto& suc : n_suc)
+            ans.insert(idToNode.at(suc));
+        return ans;
     }
 }

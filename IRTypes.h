@@ -15,7 +15,7 @@
 namespace IntermediateRepresentation {
 
     enum IRDataType {
-        i1, i4, i8, i16, i32,   // types of integers
+        i32,   // types of integers
         str, t_void, label = t_void
     };
 
@@ -69,28 +69,37 @@ namespace IntermediateRepresentation {
 
 
         RETURN,     // return from a function
-        ALLOCA,     // allocating stack
-        /**
-         * alloca i32 %dest;
-         * */
 
         MOV,        // move or assign. %source is not allowed in SSA form
-        /*
+        /**
          * mov i32 %dest, i32 %source
          * mov i32 %dest, i32 <imm>
          * */
 
         LABEL,      // label
         LOAD,       // load to variable
+        /**
+         * load i32 %dest, *i32 %base, i32 %off
+         * %off: offset bytes
+         * */
         STORE,      // save to allocated space
+        /**
+         * load i32 %source, *i32 %base, i32 %off
+         * %off: offset bytes
+         * */
+        ALLOCA,     // allocating on stack
+        /**
+         * alloca i32 %dest, i32 %size
+         * %size: size bytes
+         * */
+
         CMP_EQ,     // comparison (equal)
         CMP_NE,     // comparison (notequal)
-        CMP_UGE,    // comparison (unsigned, greaterequal)
-        CMP_ULE,    // comparison (unsigned, lesseuqal)
         CMP_SGE,    // comparison (signed, greatereuqal)
         CMP_SLE,    // comparison (signed, lessequal)
         CMP_SGT,    // comparison (signed, greater)
         CMP_SLT,    // comparison (signed, less)
+
         GLB_CONST,  // global constant
         GLB_VAR,    // global variable
         /**
@@ -99,7 +108,7 @@ namespace IntermediateRepresentation {
 
         LSH, RSH,   // bits shifting
         OR, AND, XOR, NOT, // boolean operators
-        PHI         // phi function
+        PHI,         // phi function
         /**
          * 5 arguments:
          * phi  <dest_var> [ <varA>, <blockA> ], [ <varB>, <blockB> ]
@@ -107,6 +116,14 @@ namespace IntermediateRepresentation {
          * where block{ A | B } are **labels** (blocks);
          * '[', ']' are presented here as semantic separators, and they do **NOT** appear in IR.
          * Arguments inside a bracket pair denote a variable and the branch jumped from.
+         * */
+
+        STK_LOAD,
+        STK_STR
+        /**
+         * These are low-level IRs. Frontend should not use them.
+         * STK_LOAD i32 %dest, %off
+         * STK_STR  i32 %src, %off
          * */
     };
 

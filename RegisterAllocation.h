@@ -177,8 +177,10 @@ namespace Backend::RegisterAllocation {
                 preColoured.insert(param);
 
             doFunctionScan();
-            baseType::variables = interferenceGraph.getNodes();
-            baseType::allocation = colour;
+            auto&& nodes = interferenceGraph.getNodes();
+            baseType::variables = decltype(baseType::variables) { nodes.begin(), nodes.end() };
+            for (const auto& var : baseType::variables)
+                baseType::allocation[var] = colour[alias.find(var)];
         }
     };
 

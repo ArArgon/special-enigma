@@ -901,8 +901,9 @@ namespace Backend::Translator {
                 "Allocator must be a derived class of RegisterAllocation::RegisterAllocator");
         using ArmRegAllocator = RegisterAllocation::RegisterAllocator<registerCount>;
         using allocator_t = Allocator<registerCount>;
-    private:
         std::unique_ptr<ArmRegAllocator> allocator;
+
+        void procGlobal();
 
     public:
         Translator() = default;
@@ -912,13 +913,129 @@ namespace Backend::Translator {
             InstructionStream ins;
             // TODO
             auto functions = irProgram.getFunctions();
+
+            procGlobal();
+
             for(auto& func : functions) {
                 allocator = std::make_unique<allocator_t>(allocator_t (func));
 
                 auto allocation = allocator->getAllocation();
                 auto variables = allocator->getVariables();
-            }
+                std::vector<IntermediateRepresentation::Statement>&& stmts = func->getStatements();
 
+                for (auto& stmt : stmts) {
+                    switch (stmt.getStmtType()) {
+                        case IntermediateRepresentation::BR: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::ADD: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::MUL: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::DIV: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::MOD: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::SUB: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::CALL: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::RETURN: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::MOV: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::LABEL: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::LOAD: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::STORE: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::CMP_EQ: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::CMP_NE: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::CMP_SGE: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::CMP_SLE: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::CMP_SGT: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::CMP_SLT: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::GLB_CONST: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::GLB_VAR: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::LSH: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::RSH: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::OR: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::AND: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::XOR: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::NOT: {
+
+                        }
+                            break;
+                        case IntermediateRepresentation::PHI: {
+
+                        }
+                            break;
+                    }
+                }
+            }
             return ins;
         }
     };
