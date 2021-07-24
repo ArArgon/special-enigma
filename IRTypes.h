@@ -79,12 +79,12 @@ namespace IntermediateRepresentation {
         LABEL,      // label
         LOAD,       // load to variable
         /**
-         * load i32 %dest, *i32 %base, i32 %off
+         * load *i32 %base, i32 %off, *i32 %dest
          * %off: offset bytes
          * */
         STORE,      // save to allocated space
         /**
-         * load i32 %source, *i32 %base, i32 %off
+         * store *i32 %base, i32 %off, %source
          * %off: offset bytes
          * */
         ALLOCA,     // allocating on stack
