@@ -10,7 +10,7 @@ namespace IntermediateRepresentation {
     size_t NamingUtil::counter = 0;
 
     void IRArray::addData(size_t position, int value) {
-        if (position >= defaultValue)
+        if (position >= arrSize)
             return;
         if (value == defaultValue && data.count(position))
             data.erase(position);
