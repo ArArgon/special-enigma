@@ -5,6 +5,7 @@
 #ifndef SYSYBACKEND_IRTYPES_H
 #define SYSYBACKEND_IRTYPES_H
 
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -79,17 +80,17 @@ namespace IntermediateRepresentation {
         LABEL,      // label
         LOAD,       // load to variable
         /**
-         * load *i32 %base, i32 %off, *i32 %dest
+         * load *i32 %base, i32 %off, i32 %dest
          * %off: offset bytes
          * */
         STORE,      // save to allocated space
         /**
-         * store *i32 %base, i32 %off, %source
+         * store *i32 %base, i32 %off, i32 %source
          * %off: offset bytes
          * */
         ALLOCA,     // allocating on stack
         /**
-         * alloca i32 %dest, i32 %size
+         * alloca *i32 %dest, i32 %size
          * %size: size bytes
          * */
 
@@ -99,12 +100,17 @@ namespace IntermediateRepresentation {
         CMP_SLE,    // comparison (signed, lessequal)
         CMP_SGT,    // comparison (signed, greater)
         CMP_SLT,    // comparison (signed, less)
+        /*
+         * cmp_xx   %dest, %opr1, %opr2
+         * */
 
         GLB_CONST,  // global constant
         GLB_VAR,    // global variable
         /**
          * (glb_var i32), %dest, i32 <val>
          * */
+        GLB_ARR,
+        /**/
 
         LSH, RSH,   // bits shifting
         OR, AND, XOR, NOT, // boolean operators
@@ -146,6 +152,21 @@ namespace IntermediateRepresentation {
         static std::string nextHeapLblName() {
             return std::string("LBL_HP_") + std::to_string(counter++);
         }
+    };
+
+    struct IRArray {
+        std::string arrayName;
+        size_t arrSize; // elements
+        int defaultValue;
+        std::map<uint64_t , int> data;
+
+        IRArray() = default;
+
+        IRArray(std::string arrayName, size_t arrSize);
+
+        IRArray(std::string arrayName, size_t arrSize, int defaultValue);
+
+        void addData(size_t position, int value);
     };
 
     class IROperand {
@@ -421,13 +442,21 @@ namespace IntermediateRepresentation {
     class IRProgram {
         std::vector<Statement> global;
         std::vector<Function> functions;
-
+        std::vector<IRArray> globalArrays;
 
     public:
         // 1. functions, 2. global variables
         IRProgram(std::vector<Statement> global, std::vector<Function> functions) : global(std::move(global)), functions(std::move(functions)) { }
         // default constructor
         IRProgram() = default;
+
+        const std::vector<IRArray> &getGlobalArrays() const {
+            return globalArrays;
+        }
+
+        void setGlobalArrays(const std::vector<IRArray> &globalArrays) {
+            IRProgram::globalArrays = globalArrays;
+        }
 
         auto& atGlobal(const size_t pos) {
             return global[pos];
