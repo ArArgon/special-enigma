@@ -80,12 +80,12 @@ namespace IntermediateRepresentation {
         LABEL,      // label
         LOAD,       // load to variable
         /**
-         * load *i32 %base, i32 %off, i32 %dest
+         * load i32 %dest, *i32 %base, i32 %off
          * %off: offset bytes
          * */
         STORE,      // save to allocated space
         /**
-         * store *i32 %base, i32 %off, i32 %source
+         * store i32 %source, *i32 %base, i32 %off
          * %off: offset bytes
          * */
         ALLOCA,     // allocating on stack
@@ -167,6 +167,12 @@ namespace IntermediateRepresentation {
         IRArray(std::string arrayName, size_t arrSize, int defaultValue);
 
         void addData(size_t position, int value);
+
+        const std::map<uint64_t, int> &getData() const;
+
+        size_t getArrSize() const;
+
+        const std::string &getArrayName() const;
     };
 
     class IROperand {
@@ -340,6 +346,10 @@ namespace IntermediateRepresentation {
         }
 
         const std::vector<IROperand> &getOps() const {
+            return Ops;
+        }
+
+        std::vector<IROperand>& getRefOps() {
             return Ops;
         }
 

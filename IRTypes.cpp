@@ -23,4 +23,16 @@ namespace IntermediateRepresentation {
     IRArray::IRArray(std::string arrayName, size_t arrSize, int defaultValue) : arrayName(std::move(arrayName)),
                                                                                        arrSize(arrSize),
                                                                                        defaultValue(defaultValue) {}
+
+    const std::map<uint64_t, int> &IRArray::getData() const {
+        return data;
+    }
+
+    size_t IRArray::getArrSize() const {
+        return arrSize;
+    }
+
+    const std::string &IRArray::getArrayName() const {
+        return arrayName;
+    }
 }
