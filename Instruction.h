@@ -25,6 +25,12 @@ namespace Instruction {
     enum CMPType {
         CMP, CMN, TST, TEQ
     };
+    enum ShiftType {
+        ASR = 0, LSL, LSR, ROR, RRX
+    };
+    const std::string shiftASM[] = {
+            "ASR", "LSL", "LSR", "ROR", "RRX"
+    };
 
     enum DataSegType {
         BYTE1, BYTE2, STR, SKIP
@@ -142,7 +148,7 @@ namespace Instruction {
     class DotInstruction : public MachineInstruction {
     public:
         enum DotType {
-            BYTE, BYTE_2, BYTE_4, BYTE_8, ASCII, ASCIZ, LONG, WORD
+            BYTE, BYTE_2, BYTE_4, BYTE_8, ASCII, ASCIZ, LONG, WORD, ZERO
         };
     private:
         DotType dotType;
@@ -154,6 +160,8 @@ namespace Instruction {
         };
     public:
         DotInstruction(DotType dotType, const std::string &sValue) : dotType(dotType), sValue(sValue), isStr(true) { }
+
+        DotInstruction(DotType dotType, uint32_t bValue) : dotType(dotType), bValue(bValue), isStr(false) { }
 
         DotInstruction(size_t len, uint64_t bValue) : bValue(bValue) {
             isStr = false;
@@ -394,6 +402,31 @@ namespace Instruction {
         }
     };
 
+    class ShiftInstruction : public MachineInstruction {
+        Operands::Register target, source, bits;
+        ShiftType type;
+        size_t immBits;
+        bool useRegister;
+
+    public:
+        ShiftInstruction(ShiftType type, Operands::Register target, Operands::Register source,
+                         Operands::Register bits) : target(std::move(target)), source(std::move(source)), bits(std::move(bits)), useRegister(true), type(type) { }
+
+        ShiftInstruction(ShiftType type, Operands::Register target, Operands::Register source, size_t immBits) : target(std::move(
+                target)), source(std::move(source)), immBits(immBits), useRegister(false), type(type) { }
+
+    public:
+        std::string toASM() const override {
+            std::string ans;
+            ans += shiftASM[type] + " " + target.toASM() + ", " + source.toASM() + ", ";
+            if (useRegister)
+                ans += bits.toASM();
+            else
+                ans += "#" + std::to_string(immBits);
+            return ans;
+        }
+    };
+
     class BitInstruction : public MachineInstruction {
     private:
         BitType instructionType;
@@ -547,13 +580,42 @@ namespace Instruction {
         }
     };
 
+    class MoveInverseInstruction : public MachineInstruction {
+        Operands::Register destReg;
+        Operands::Operand2 resOpr2;
+        bool update;
+
+    public:
+        MoveInverseInstruction(const Operands::Register &destReg, const Operands::Operand2 &resOpr2, bool update = false)
+                : destReg(destReg), resOpr2(resOpr2), update(update) { }
+
+        std::string toASM() const override {
+            return "mvn" + (update ? std::string("s ") : std::string(" ")) + destReg.toASM() + ", " + resOpr2.toASM();
+        }
+
+    };
+
     class MoveInstruction : public MachineInstruction {
+    public:
+        enum MovePosition {
+            ALL = 0, HIGH, LOW
+        };
+    private:
         Operands::Register destReg;
         Operands::Operand2 resOpr2;
         Operands::ImmediateNumber<16> resImm16;
         bool isOpr2, update;
+        MovePosition position = ALL;
 
     public:
+
+        void setPosition(MovePosition position) {
+            MoveInstruction::position = position;
+        }
+
+        MovePosition getPosition() const {
+            return position;
+        }
 
         MoveInstruction(const Operands::Register &sourceReg, const Operands::Operand2 &destOpr2) : destReg(sourceReg), update(false),
                                                                                                    resOpr2(destOpr2), isOpr2(true) { }
@@ -565,10 +627,17 @@ namespace Instruction {
                 destReg), resOpr2(resOpr2), update(update), isOpr2(true) { }
 
         MoveInstruction(const Operands::Register &destReg, const Operands::ImmediateNumber<16> &resImm16, bool update)
-                : destReg(destReg), resImm16(resImm16), update(update), isOpr2(false) {}
+                : destReg(destReg), resImm16(resImm16), update(update), isOpr2(false) { }
+
+        MoveInstruction(const Operands::Register &destReg, const Operands::ImmediateNumber<16> &resImm16, bool update, MovePosition position)
+                : destReg(destReg), resImm16(resImm16), update(update), isOpr2(false), position(position) { }
 
         std::string toASM() const override {
             std::string ans = "mov";
+            if (position == HIGH)
+                ans += "t";
+            else if (position == LOW)
+                ans += "w";
             ans += update ? "s " : " ";
             ans += destReg.toASM();
             if (isOpr2)

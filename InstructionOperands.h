@@ -60,6 +60,14 @@ namespace Instruction::Operands {
         }
     public:
 
+        static bool isTooLong(int num) {
+            if (num >= 0) {
+                return num > ((1u << len) - 1);
+            } else {
+                return (-num) > ((1u << (len - 1)) - 1);
+            }
+        }
+
         explicit ImmediateNumber(int32_t value) : Value(tailor(value)) { }
         ImmediateNumber() : Value(0) { }
 

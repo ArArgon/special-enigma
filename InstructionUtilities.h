@@ -11,7 +11,6 @@ namespace Instruction::Utilities {
     /*
     * Immediate number abbr
     * */
-
     bool isTooLong(int32_t val) {
         uint32_t u_val = reinterpret_cast<int32_t>(val);
         while (!(u_val & 1))
@@ -41,6 +40,10 @@ namespace Instruction::Utilities {
                 r12(R12), r13(R13), r14(R14), r15(R15),
                 pc(PC), lr(LR), fp(FP), ip(IP),
                 sp(SP);
+
+        static const Operands::Register numToReg[] = {
+                r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15
+        };
     }
 }
 

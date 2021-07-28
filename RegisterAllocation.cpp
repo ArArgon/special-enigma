@@ -107,6 +107,112 @@ namespace Backend::RegisterAllocation {
         /*
          * TODO: For each spilled nodes, create new temporary vi for each definition and each use
          * */
+
+        auto isAllocated = [&] (const IntermediateRepresentation::IROperand& var) {
+            return baseType::stackScheme->isInStack(alias.find(var));
+        };
+
+        // assign stack space
+        for (auto& node : spilledNodes) {
+            baseType::stackScheme->allocate(node);
+        }
+
+        for (auto& bb : basicBlocks) {
+            auto& ins = bb->statements;
+            for (auto it = ins.begin(); it != ins.end(); it++) {
+                auto& ops = it->statement->getRefOps();
+                auto stmtType = it->statement->getStmtType();
+                for (auto& useVar : it->use) {
+                    if (isAllocated(useVar)) {
+                        size_t offset = baseType::stackScheme->getVariablePosition(useVar);
+                        if (it->def.count(useVar)) {
+                            IntermediateRepresentation::IROperand tmpVar {
+                                IntermediateRepresentation::i32, "tmp_" + baseType::spilledCount++ + "_" + useVar.getVarName()
+                            };
+                            // insert before
+                            // stk_load     %xxx#<var>, %off
+                            Flow::BasicBlock::BBStatement tmpStmt;
+                            auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, useVar, offset);
+                            tmpStmt.statement = std::make_shared<decltype(load_st)>(load_st);
+                            it = ins.insert(it, tmpStmt) + 1;
+
+                            // insert after
+                            // stk_str      %xxx#<var>, %off
+                            load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, useVar, offset);
+                            tmpStmt.statement = std::make_shared<decltype(load_st)>(load_st);
+                            it = ins.insert(it + 1, tmpStmt) + 1;
+
+                            // replace usage
+                            it->replaceUse(useVar, tmpVar);
+                            it->replaceDef(useVar, tmpVar);
+                            spillTemp.insert(tmpVar);
+                        } else {
+                            if (stmtType == IntermediateRepresentation::MOV && ops[0] == useVar && !isAllocated(ops[1])) {
+                                /*
+                                 * mov          %dest, %src     @ %src is allocated, and %dest is not.
+                                 *
+                                 * stk_load     %dest, %<src.off>
+                                 * */
+                                it->statement->setStmtType(IntermediateRepresentation::STK_LOAD);
+                                it->statement->setDataType(IntermediateRepresentation::i32);
+                                ops[2] = IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset);
+                            } else {
+                                /*
+                                 * opr          %arg1, %argX, ..., %argN
+                                 *
+                                 * stk_load     %tmp_<id>_argX, %off
+                                 * opr          %arg1, %tmp_<id>_argX, ...
+                                 * */
+                                IntermediateRepresentation::IROperand tmpVar {
+                                        IntermediateRepresentation::i32, "tmp_" + baseType::spilledCount++ + "_" + useVar.getVarName()
+                                };
+
+                                // insert before
+                                // stk_load     %tmp_xxx_<var>, %off
+                                Flow::BasicBlock::BBStatement tmpStmt;
+                                auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, useVar, offset);
+                                tmpStmt.statement = std::make_shared<decltype(load_st)>(load_st);
+
+                                it = ins.insert(it, tmpStmt) + 1;
+                                it->replaceUse(useVar, tmpVar);
+                            }
+                        }
+                    }
+                }
+                for (auto& defVar : it->def) {
+                    if (isAllocated(defVar)) {
+                        auto offset = baseType::stackScheme.getVariablePosition(defVar);
+                        if (stmtType == IntermediateRepresentation::MOV && !isAllocated(ops[1])) {
+                            /*
+                             * mov      %dest, %src     @ %dest is allocated, and %src is not allocated or an imm.
+                             *
+                             * stk_str  %src, %off
+                             * */
+                            it->statement->setDataType(IntermediateRepresentation::i32);
+                            it->statement->setStmtType(IntermediateRepresentation::STK_STR);
+                            it->statement->setOps({ ops[1], IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset) });
+                        } else {
+                            IntermediateRepresentation::IROperand tmpVar {
+                                    IntermediateRepresentation::i32, "tmp_" + baseType::spilledCount++ + "_" + defVar.getVarName()
+                            };
+
+                            // insert after
+                            /*
+                             * stk_str      %dest,  %off
+                             * */
+                            Flow::BasicBlock::BBStatement tmpStmt;
+                            auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, defVar, offset);
+                            tmpStmt.statement = std::make_shared<decltype(load_st)>(load_st);
+                            it = ins.insert(it + 1, tmpStmt) + 1;
+
+                            spillTemp.insert(defVar);
+                            it->replaceDef(defVar, tmpVar);
+                        }
+                    }
+                }
+            }
+        }
+
         spilledNodes.clear();
         initial = coloredNodes;
 
@@ -202,6 +308,8 @@ namespace Backend::RegisterAllocation {
      * */
     template<size_t registerCount>
     void ColourAllocator<registerCount>::assignColours() {
+        for (auto& pre : preColoured)
+            colour[pre] = preColourScheme[pre];
         while (!selectStack.empty()) {
             auto& n = selectStack.top();
             std::set<size_t> okColours;

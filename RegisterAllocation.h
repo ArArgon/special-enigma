@@ -29,14 +29,25 @@ namespace Backend::RegisterAllocation {
         std::shared_ptr<IntermediateRepresentation::Function> sourceFunc;
         std::map<IntermediateRepresentation::IROperand, size_t> allocation;
         std::set<IntermediateRepresentation::IROperand> variables;
+        std::shared_ptr<Util::StackScheme> stackScheme;
+        std::unordered_set<size_t> totalColours; // TODO
+
+        size_t spilledCount = 0;
+
         virtual void doFunctionScan() = 0;
     public:
 
         virtual ~RegisterAllocator() = 0;
-        explicit RegisterAllocator(std::shared_ptr<IntermediateRepresentation::Function> func) : sourceFunc(std::move(func)) { };
+        explicit RegisterAllocator(Util::StackScheme &stack, std::shared_ptr<IntermediateRepresentation::Function> func) : stackScheme(&stack), sourceFunc(std::move(func)) { };
         RegisterAllocator() = default;
+
         const auto& getAllocation() { return allocation; }
+
         const auto& getVariables() { return variables; }
+
+        const std::shared_ptr<Util::StackScheme> &getStackScheme() const { return stackScheme; }
+
+        const std::unordered_set<size_t> &getTotalColours() const { return totalColours; }
     };
 
     template<size_t registerCount>
@@ -63,6 +74,7 @@ namespace Backend::RegisterAllocation {
         std::unordered_map<var_t, double> weight;
         std::unordered_set<is_t> workListMoves, activeMoves, frozenMoves, constrainedMoves, coalescedMoves;
         std::unordered_set<var_t> spilledNodes, spillWorklist, coloredNodes, coalescedNodes, freezeWorklist, initial, preColoured, spillTemp;
+        std::unordered_map<var_t, size_t> preColourScheme;
         std::list<var_t> simplifyWorklist;
         std::stack<var_t> selectStack;
         Util::DisjointSet<var_t> alias;
@@ -169,12 +181,31 @@ namespace Backend::RegisterAllocation {
 
     public:
 
-        explicit ColourAllocator(IntermediateRepresentation::Function& func) :
-        baseType::RegisterAllocator(decltype(baseType::sourceFunc) (&func)) {
+        explicit ColourAllocator(Util::StackScheme &stack, IntermediateRepresentation::Function& func) :
+        baseType::RegisterAllocator(decltype(baseType::sourceFunc) (&stack, &func)) {
             // load pre-colour
-            auto& params = func.getParameters();
-            for (auto& param : params)
-                preColoured.insert(param);
+            //
+            /*
+             * call %dest, func, %1, %2, %3, %4, %5, ..., %N
+             *
+             * %dest is pre-coloured: r0
+             * %1, %2, %3, %4 = r0, r1, r2, r3
+             * */
+            auto& stmts = func.getStatements();
+
+            for (auto& stmt : stmts) {
+                auto& ops = stmt.getOps();
+                const int opsCount = static_cast<int>(ops.size());
+                if (stmt.getStmtType() == IntermediateRepresentation::CALL) {
+                    // pre-colour %dest
+                    preColoured.insert(ops[0]);
+                    for (int i = 2; i < std::min(6, opsCount); i++) {
+                        preColoured.insert(ops[i]);
+                        // op1 -> r0, op2 -> r1, ...
+                        preColourScheme[ops[i]] = i - 2;
+                    }
+                }
+            }
 
             doFunctionScan();
             auto&& nodes = interferenceGraph.getNodes();

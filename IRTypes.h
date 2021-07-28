@@ -63,7 +63,7 @@ namespace IntermediateRepresentation {
 
         CALL,       // function call
         /**
-         * call void func <return_var> par1, par2, par3, ...
+         * call void <func>, <return_var>, par1, par2, par3, ...
          *
          * If 'func' returns void, 'return_var' will hold the place but be **ignored** by IRTranslator.
          * */
@@ -122,6 +122,13 @@ namespace IntermediateRepresentation {
          * where block{ A | B } are **labels** (blocks);
          * '[', ']' are presented here as semantic separators, and they do **NOT** appear in IR.
          * Arguments inside a bracket pair denote a variable and the branch jumped from.
+         * */
+
+        PARAM,
+        /**
+         * load function parameters
+         *
+         * param %1, #pos
          * */
 
         STK_LOAD,
@@ -191,8 +198,14 @@ namespace IntermediateRepresentation {
         }
 
         std::string toString() const {
-            return std::to_string(irOpType) + "#" + std::to_string(irValType) + "#" +
-                   std::to_string(Value) + "#" + strValue + "#" + varName + "#" + std::to_string(isPointer);
+            switch (irOpType) {
+                case ImmVal:
+                    return std::to_string(irOpType) + "#" + (irValType == i32 ? std::to_string(Value) : strValue) + std::to_string(irValType);
+                case Var:
+                    return std::to_string(irOpType) + "#" + varName + "#" + std::to_string(irValType);
+                case Null:
+                    return std::to_string(irOpType) + "#Null";
+            }
         }
 
         bool operator<(const IROperand &rhs) const {
@@ -301,6 +314,13 @@ namespace IntermediateRepresentation {
         std::vector<IROperand> Ops;
         std::string label_name;
     public:
+
+        std::string toString() const {
+            std::string ans = std::to_string(stmtType) + "#" + std::to_string(dataType);
+            for (auto& op : Ops)
+                ans += " " + op.toString();
+            return ans;
+        }
 
         auto& atOperands(const size_t pos) {
             return Ops[pos];

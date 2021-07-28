@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <unordered_map>
+#include <exception>
 #include <memory>
 #include <utility>
 
@@ -22,15 +23,18 @@ namespace Backend::Flow {
         struct BBStatement {
             std::shared_ptr<IntermediateRepresentation::Statement> statement;
             varSet def, use, live;
+
+            void replaceUse(const IntermediateRepresentation::IROperand& oldVar, const IntermediateRepresentation::IROperand& newVar);
+            void replaceDef(const IntermediateRepresentation::IROperand& oldVar, const IntermediateRepresentation::IROperand& newVar);
         };
     private:
         varSet def, use;
 
-        static BBStatement procRawStatement(IntermediateRepresentation::Statement& stmt);
-
     public:
         std::vector<BBStatement> statements;
         varSet liveIn, liveOut;
+
+        static BBStatement procRawStatement(IntermediateRepresentation::Statement& stmt);
 
         BasicBlock() = default;
 

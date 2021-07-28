@@ -14,6 +14,14 @@
 #include <set>
 #include "IRTypes.h"
 
+template<>
+class std::hash<IntermediateRepresentation::IROperand> {
+public:
+    size_t operator() (const IntermediateRepresentation::IROperand& operand) const {
+        return std::hash<std::string> { }(operand.toString());
+    }
+};
+
 namespace Backend::Util {
 
     template<class NodeType>
@@ -136,6 +144,39 @@ namespace Backend::Util {
         }
     };
 
+    class StackScheme {
+    private:
+        using var_t = IntermediateRepresentation::IROperand;
+
+        size_t currentStackSize;    // Bytes
+        std::unordered_set<var_t> inStackVariables;
+        std::unordered_map<var_t, size_t> variablePosition; // Also bytes
+    public:
+        size_t allocate(const var_t& opr, size_t size = 4) {
+            if (size & 0b11) {
+                // not 4-align
+                return -1;
+            }
+            size_t pos = currentStackSize;
+            inStackVariables.insert(opr);
+            variablePosition[opr] = pos;
+            currentStackSize += size;
+            return pos;
+        }
+
+        size_t getVariablePosition(const var_t& opr) const {
+            return inStackVariables.count(opr) ? variablePosition.at(opr) : -1;
+        }
+
+        bool isInStack(const var_t& opr) const {
+            return inStackVariables.count(opr) > 0;
+        }
+
+        size_t getStackSize() const {
+            return currentStackSize;
+        }
+    };
+
     template<class Set>
     inline auto set_diff(const Set& a, const Set& b) {
         // return a - b;
@@ -157,13 +198,5 @@ namespace Backend::Util {
     }
 
 }
-
-template<>
-class std::hash<IntermediateRepresentation::IROperand> {
-public:
-    size_t operator() (const IntermediateRepresentation::IROperand& operand) const {
-        return std::hash<std::string> { }(operand.toString());
-    }
-};
 
 #endif //SYSYBACKEND_UTILITIES_H

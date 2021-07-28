@@ -106,46 +106,192 @@ namespace Backend::Flow {
             IntermediateRepresentation::Statement &stmt) {
         BasicBlock::BBStatement ans;
         ans.statement = std::shared_ptr<IntermediateRepresentation::Statement> (&stmt);
+        auto& ops = stmt.getRefOps();
         // TODO process statement
         switch (stmt.getStmtType()) {
             case IntermediateRepresentation::ADD:
             case IntermediateRepresentation::MUL:
             case IntermediateRepresentation::DIV:
             case IntermediateRepresentation::MOD:
-            case IntermediateRepresentation::SUB: {
-                /*
-                * opr %dest, %opr1, %opr2
-                * */
-            }
-                break;
-            case IntermediateRepresentation::CALL:
-                break;
-            case IntermediateRepresentation::RETURN:
-                break;
-            case IntermediateRepresentation::ALLOCA:
-                break;
+            case IntermediateRepresentation::SUB:
+            case IntermediateRepresentation::MOV:
             case IntermediateRepresentation::CMP_EQ:
             case IntermediateRepresentation::CMP_NE:
-            case IntermediateRepresentation::CMP_UGE:
-            case IntermediateRepresentation::CMP_ULE:
             case IntermediateRepresentation::CMP_SGE:
             case IntermediateRepresentation::CMP_SLE:
             case IntermediateRepresentation::CMP_SGT:
             case IntermediateRepresentation::CMP_SLT:
-                break;
-
             case IntermediateRepresentation::LSH:
             case IntermediateRepresentation::RSH:
             case IntermediateRepresentation::OR:
             case IntermediateRepresentation::AND:
             case IntermediateRepresentation::XOR:
             case IntermediateRepresentation::NOT:
-            case IntermediateRepresentation::PHI:
+            case IntermediateRepresentation::PARAM:
+            case IntermediateRepresentation::GLB_ARR:
+            case IntermediateRepresentation::GLB_VAR:
+            case IntermediateRepresentation::GLB_CONST:
+            case IntermediateRepresentation::STK_LOAD:
+            case IntermediateRepresentation::LOAD:
+            case IntermediateRepresentation::ALLOCA: {
+                /*
+                * opr %dest, %opr1, %opr2, ...
+                * */
+                ans.def.insert(ops[0]);
+                for (auto it = ops.begin() + 1; it != ops.end(); it++) {
+                    if (it->getIrOpType() == IntermediateRepresentation::Var)
+                        ans.use.insert(*it);
+                }
+            }
                 break;
-            default:
+            case IntermediateRepresentation::CALL: {
+                /*
+                 * call     %dest, func, %1, %2, %3, %4, %5, ..., %n
+                 * */
+                if (ops[0].getIrOpType() == IntermediateRepresentation::Var)
+                    ans.def.insert(ops[0]);
+                int len = ops.size();
+                for (int i = 2; i <= std::min(5, len - 1); i++) {
+                    if (ops[i].getIrOpType() == IntermediateRepresentation::Var)
+                        ans.use.insert(ops[i]);
+                }
+            }
+                break;
+            case IntermediateRepresentation::STK_STR:
+            case IntermediateRepresentation::STORE:
+            case IntermediateRepresentation::RETURN:
+            case IntermediateRepresentation::BR:
+                if (ops[0].getIrOpType() == IntermediateRepresentation::Var)
+                    ans.use.insert(ops[0]);
+                for (auto it = ops.begin() + 1; it != ops.end(); it++) {
+                    if (it->getIrOpType() == IntermediateRepresentation::Var)
+                        ans.use.insert(*it);
+                }
+                break;
+
+            case IntermediateRepresentation::PHI:
+            case IntermediateRepresentation::LABEL:
                 break;
         }
 
         return ans;
+    }
+
+    void BasicBlock::BBStatement::replaceUse(const IntermediateRepresentation::IROperand &oldVar,
+                                             const IntermediateRepresentation::IROperand &newVar) {
+        if (oldVar == newVar)
+            return;
+        if (oldVar.getIrOpType() != IntermediateRepresentation::Var)
+            throw std::runtime_error("Unable to replace use: " + oldVar.getVarName() + " is not a variable");
+        if (newVar.getIrOpType() != IntermediateRepresentation::Var)
+            throw std::runtime_error("Unable to replace use: " + newVar.getVarName() + " is not a variable");
+        if (!use.count(oldVar))
+            throw std::runtime_error("Unable to replace use: " + oldVar.getVarName() + " doesn't present in the instruction");
+        use.erase(oldVar);
+        use.insert(newVar);
+        auto& ops = statement->getRefOps();
+        int opsCount = ops.size();
+        switch (statement->getStmtType()) {
+            // TODO
+            case IntermediateRepresentation::BR:
+                ops[0] = newVar;
+                break;
+            case IntermediateRepresentation::CALL: {
+                for (int i = 2; i < opsCount; i++)
+                    if (ops[i] == oldVar)
+                        ops[i] = newVar;
+            }
+                break;
+            case IntermediateRepresentation::STORE:
+            case IntermediateRepresentation::STK_STR:
+            case IntermediateRepresentation::ADD:
+            case IntermediateRepresentation::MUL:
+            case IntermediateRepresentation::DIV:
+            case IntermediateRepresentation::MOD:
+            case IntermediateRepresentation::SUB:
+            case IntermediateRepresentation::RETURN:
+            case IntermediateRepresentation::MOV:
+            case IntermediateRepresentation::LOAD:
+            case IntermediateRepresentation::CMP_EQ:
+            case IntermediateRepresentation::CMP_NE:
+            case IntermediateRepresentation::CMP_SGE:
+            case IntermediateRepresentation::CMP_SLE:
+            case IntermediateRepresentation::CMP_SGT:
+            case IntermediateRepresentation::CMP_SLT:
+            case IntermediateRepresentation::LSH:
+            case IntermediateRepresentation::RSH:
+            case IntermediateRepresentation::OR:
+            case IntermediateRepresentation::AND:
+            case IntermediateRepresentation::XOR:
+            case IntermediateRepresentation::NOT: {
+                /*
+                 * ins %dest, %opr1, ...
+                 * */
+                for (int i = 1; i < opsCount; i++)
+                    if (ops[i] == oldVar)
+                        ops[i] = newVar;
+            }
+                break;
+            default:
+                throw std::runtime_error("Unable to replace def: " + std::to_string(statement->getStmtType()) + " has no use");
+        }
+    }
+
+    void BasicBlock::BBStatement::replaceDef(const IntermediateRepresentation::IROperand &oldVar,
+                                             const IntermediateRepresentation::IROperand &newVar) {
+        if (!def.count(oldVar))
+            throw std::runtime_error("Unable to replace def: " + oldVar.getVarName() + " doesn't present in the instruction");
+        def.erase(oldVar);
+        def.insert(newVar);
+        auto& ops = statement->getRefOps();
+        switch (statement->getStmtType()) {
+            case IntermediateRepresentation::PARAM:
+            case IntermediateRepresentation::LOAD:
+            case IntermediateRepresentation::STK_LOAD:
+            case IntermediateRepresentation::MOV:
+            case IntermediateRepresentation::ADD:
+            case IntermediateRepresentation::MUL:
+            case IntermediateRepresentation::DIV:
+            case IntermediateRepresentation::MOD:
+            case IntermediateRepresentation::SUB:
+            case IntermediateRepresentation::ALLOCA:
+            case IntermediateRepresentation::CMP_EQ:
+            case IntermediateRepresentation::CMP_NE:
+            case IntermediateRepresentation::CMP_SGE:
+            case IntermediateRepresentation::CMP_SLE:
+            case IntermediateRepresentation::CMP_SGT:
+            case IntermediateRepresentation::CMP_SLT:
+            case IntermediateRepresentation::GLB_CONST:
+            case IntermediateRepresentation::GLB_VAR:
+            case IntermediateRepresentation::GLB_ARR:
+            case IntermediateRepresentation::LSH:
+            case IntermediateRepresentation::RSH:
+            case IntermediateRepresentation::OR:
+            case IntermediateRepresentation::AND:
+            case IntermediateRepresentation::XOR:
+            case IntermediateRepresentation::NOT: {
+                /*
+                 * ins  %dest, xxx
+                 *
+                 * ins  %replce, xxx
+                 * */
+                if (ops[0].getIrOpType() != IntermediateRepresentation::Var)
+                    throw std::runtime_error("Unable to replace def: destination does not present in IR: '" + std::to_string(statement->getStmtType()) + "'.");
+                ops[0] = newVar;
+            }
+                break;
+            case IntermediateRepresentation::CALL: {
+                /*
+                 * call     %dest, func, %1, ...
+                 * */
+                if (ops[0].getIrOpType() != IntermediateRepresentation::Var)
+                    throw std::runtime_error("Unable to replace def: function call '" + std::to_string(statement->getStmtType()) + "' has no return");
+                ops[0] = newVar;
+            }
+                break;
+
+            default:
+                throw std::runtime_error("Unable to replace def: " + std::to_string(statement->getStmtType()) + " has no def");
+        }
     }
 }
