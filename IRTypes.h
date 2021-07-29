@@ -13,6 +13,8 @@
 #include <utility>
 #include <algorithm>
 
+#include "IRUtilities.h"
+
 namespace IntermediateRepresentation {
 
     enum IRDataType {
@@ -207,13 +209,14 @@ namespace IntermediateRepresentation {
         }
 
         std::string toString() const {
+            std::string opStr = Utility::IROpTypeToStr[irOpType], valTypeStr = Utility::IRDataTypeToStr[irValType];
             switch (irOpType) {
                 case ImmVal:
-                    return std::to_string(irOpType) + "#" + (irValType == i32 ? std::to_string(Value) : strValue) + std::to_string(irValType);
+                    return opStr + "#" + valTypeStr + "#" + (irValType == i32 ? std::to_string(Value) : strValue);
                 case Var:
-                    return std::to_string(irOpType) + "#" + varName + "#" + std::to_string(irValType);
+                    return opStr + "#" + valTypeStr + "#" + varName;
                 case Null:
-                    return std::to_string(irOpType) + "#Null";
+                    return opStr + "#" + valTypeStr;
             }
         }
 
@@ -233,11 +236,11 @@ namespace IntermediateRepresentation {
             return !(*this < rhs);
         }
 
-        bool operator== (const IROperand& b) const {
+        bool operator==(const IROperand& b) const {
             return toString() == b.toString();
         }
 
-        bool operator!= (const IROperand& b) const {
+        bool operator!=(const IROperand& b) const {
             return toString() != b.toString();
         }
 
@@ -329,9 +332,9 @@ namespace IntermediateRepresentation {
     public:
 
         std::string toString() const {
-            std::string ans = std::to_string(stmtType) + "#" + std::to_string(dataType);
+            std::string ans = Utility::IRStmtTypeToStr[stmtType] + "#" + Utility::IRDataTypeToStr[dataType];
             for (auto& op : Ops)
-                ans += " " + std::string(op.getIsPointer() ? "*" : "") + op.toString();
+                ans += " [" + std::string(op.getIsPointer() ? "*" : "") + op.toString() + "]";
             return ans;
         }
 
