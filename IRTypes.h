@@ -228,6 +228,10 @@ namespace IntermediateRepresentation {
             return toString() == b.toString();
         }
 
+        bool operator!= (const IROperand& b) const {
+            return toString() != b.toString();
+        }
+
         const std::string &getStrValue() const {
             return strValue;
         }

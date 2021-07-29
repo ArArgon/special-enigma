@@ -42,14 +42,14 @@ namespace Backend::Util {
             G.reserve(defaultSize);
         };
 
-        Graph(const std::vector<NodeType>& nodes) {
+        explicit Graph(const std::vector<NodeType>& nodes) {
             G.reserve(nodes.size());
             for (auto& node : nodes)
                 newNode(node);
         }
 
         bool containsEdge(const NodeType& a, const NodeType& b) {
-            return adjSet.template count({ a, b });
+            return adjSet.count({ a, b });
         }
 
         void newNode(const NodeType& node) {
@@ -90,7 +90,7 @@ namespace Backend::Util {
         }
 
         void setNodeDegree(const NodeType &node, size_t value) {
-            degree[node] = value;
+            degree[nodeToId.at(node)] = value;
         }
 
         std::set<NodeType> getNeighbours(const NodeType& node) {
@@ -151,7 +151,7 @@ namespace Backend::Util {
         }
 
         int disjoint(const NodeType& u, const NodeType& v) {
-            int idu = find(u), idv = find(v);
+            int idu = idFind(nodeToId[u]), idv = idFind(nodeToId[v]);
             if (idu != idv) {
                 if (enableDepth) {
                     if (depth[idu] > depth[idv]) {
@@ -188,12 +188,12 @@ namespace Backend::Util {
 
         DisjointSet() = default;
 
-        DisjointSet(const std::set<NodeType>& nodes) {
+        explicit DisjointSet(const std::set<NodeType>& nodes) {
             for (auto& node : nodes)
                 addNode(node);
         }
 
-        DisjointSet(const std::unordered_set<NodeType>& nodes) {
+        explicit DisjointSet(const std::unordered_set<NodeType>& nodes) {
             for (auto& node : nodes)
                 addNode(node);
         }

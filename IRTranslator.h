@@ -35,7 +35,7 @@ namespace Backend::Translator {
 
     public:
         TranslatorBase() = default;
-        virtual ~TranslatorBase() = 0;
+        virtual ~TranslatorBase() = default;
         explicit TranslatorBase(IntermediateRepresentation::IRProgram irProgram) : irProgram(std::move(irProgram)) { }
         virtual Instruction::InstructionStream doTranslation() = 0;
 
