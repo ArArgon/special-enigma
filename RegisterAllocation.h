@@ -37,9 +37,9 @@ namespace Backend::RegisterAllocation {
         virtual void doFunctionScan() = 0;
     public:
 
-        virtual ~RegisterAllocator() = 0;
         explicit RegisterAllocator(Util::StackScheme &stack, std::shared_ptr<IntermediateRepresentation::Function> func) : stackScheme(&stack), sourceFunc(std::move(func)) { };
         RegisterAllocator() = default;
+        virtual ~RegisterAllocator() = 0;
 
         const auto& getAllocation() { return allocation; }
 
@@ -182,7 +182,7 @@ namespace Backend::RegisterAllocation {
     public:
 
         explicit ColourAllocator(Util::StackScheme &stack, IntermediateRepresentation::Function& func) :
-        baseType::RegisterAllocator(decltype(baseType::sourceFunc) (&stack, &func)) {
+        baseType::RegisterAllocator(stack, decltype(baseType::sourceFunc) (&func)) {
             // load pre-colour
             //
             /*
@@ -213,6 +213,8 @@ namespace Backend::RegisterAllocation {
             for (const auto& var : baseType::variables)
                 baseType::allocation[var] = colour[alias.find(var)];
         }
+
+        ~ColourAllocator() = default;
     };
 
 }

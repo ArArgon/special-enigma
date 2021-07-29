@@ -48,27 +48,82 @@ namespace Backend::Util {
                 newNode(node);
         }
 
-        bool containsEdge(const NodeType& a, const NodeType& b);
+        bool containsEdge(const NodeType& a, const NodeType& b) {
+            return adjSet.template count({ a, b });
+        }
 
-        void newNode(const NodeType& node);
+        void newNode(const NodeType& node) {
+            if (G.size() > cnt)
+                G.resize(2 * G.size());
+            size_t id = ++cnt;
+            nodeToId[node] = id;
+            idToNode[id] = node;
+            degree[id] = 0;
+            nodes.insert(node);
+        }
 
-        bool containsNode(const NodeType& node);
+        bool containsNode(const NodeType& node) {
+            return nodeToId.count(node) != 0;
+        }
 
-        void addEdge(const NodeType& a, const NodeType& b);
+        void addEdge(const NodeType& a, const NodeType& b) {
+            // a -> b
+            if (!containsNode(a))
+                newNode(a);
+            if (!containsNode(b))
+                newNode(b);
+            int id_a = nodeToId[a], id_b = nodeToId[b];
+            adjSet.template emplace(a, b);
+            degree[id_a]++;
+            G[id_a].insert(id_b);
+            precursors[id_b].insert(id_a);
+            successors[id_a].insert(id_b);
+        }
 
-        void addBiEdge(const NodeType& a, const NodeType& b);
+        void addBiEdge(const NodeType& a, const NodeType& b) {
+            addEdge(a, b);
+            addEdge(b, a);
+        }
 
-        size_t getNodeDegree(const NodeType& node) const;
+        size_t getNodeDegree(const NodeType& node) const {
+            return degree.at(nodeToId.at(node));
+        }
 
-        void setNodeDegree(const NodeType &node, size_t value);
+        void setNodeDegree(const NodeType &node, size_t value) {
+            degree[node] = value;
+        }
 
-        std::set<NodeType> getNeighbours(const NodeType& node);
+        std::set<NodeType> getNeighbours(const NodeType& node) {
+            std::set<NodeType> ans;
+            size_t id = nodeToId[node];
 
-        const std::unordered_set<NodeType> &getNodes() const;
+            for (auto& suc : G[id])
+                ans.insert(idToNode[suc]);
 
-        std::unordered_set<NodeType> getPrecursorsOf(const NodeType& node) const;
+            return ans;
+        }
 
-        std::unordered_set<NodeType> getSuccessorsOf(const NodeType& node) const;
+        const std::unordered_set<NodeType> &getNodes() const {
+            return nodes;
+        }
+
+        std::unordered_set<NodeType> getPrecursorsOf(const NodeType& node) const {
+            std::unordered_set<NodeType> ans;
+            int id_n = nodeToId.at(node);
+            auto& n_pre = successors.at(id_n);
+            for (auto& pre : n_pre)
+                ans.insert(idToNode.at(pre));
+            return ans;
+        }
+
+        std::unordered_set<NodeType> getSuccessorsOf(const NodeType& node) const {
+            std::unordered_set<NodeType> ans;
+            int id_n = nodeToId.at(node);
+            auto& n_suc = successors.at(id_n);
+            for (auto& suc : n_suc)
+                ans.insert(idToNode.at(suc));
+            return ans;
+        }
 
         template<class T>
         void doFunc(const T& func) {
@@ -86,7 +141,7 @@ namespace Backend::Util {
         std::unordered_map<int, int> fa;
 
         int idFind(int u) {
-            return fa[u] == u ? u : fa[u] = find(fa[u]);
+            return fa[u] == u ? u : fa[u] = idFind(fa[u]);
         }
 
     public:
@@ -152,29 +207,13 @@ namespace Backend::Util {
         std::unordered_set<var_t> inStackVariables;
         std::unordered_map<var_t, size_t> variablePosition; // Also bytes
     public:
-        size_t allocate(const var_t& opr, size_t size = 4) {
-            if (size & 0b11) {
-                // not 4-align
-                return -1;
-            }
-            size_t pos = currentStackSize;
-            inStackVariables.insert(opr);
-            variablePosition[opr] = pos;
-            currentStackSize += size;
-            return pos;
-        }
+        size_t allocate(const var_t& opr, size_t size = 4);
 
-        size_t getVariablePosition(const var_t& opr) const {
-            return inStackVariables.count(opr) ? variablePosition.at(opr) : -1;
-        }
+        size_t getVariablePosition(const var_t& opr) const;
 
-        bool isInStack(const var_t& opr) const {
-            return inStackVariables.count(opr) > 0;
-        }
+        bool isInStack(const var_t& opr) const;
 
-        size_t getStackSize() const {
-            return currentStackSize;
-        }
+        size_t getStackSize() const;
     };
 
     template<class Set>

@@ -133,12 +133,6 @@ namespace Instruction {
             return is;
         }
 
-//        template<typename insT>
-//        friend InstructionStream &operator<< (InstructionStream& is, const insT& instruction) {
-//            is.push_back(std::make_shared<insT>(instruction));
-//            return is;
-//        }
-
         template<typename insT = MachineInstruction>
         friend InstructionStream &operator+= (InstructionStream& is, const insT& ins) {
             return is << ins;
@@ -161,7 +155,7 @@ namespace Instruction {
     public:
         DotInstruction(DotType dotType, const std::string &sValue) : dotType(dotType), sValue(sValue), isStr(true) { }
 
-        DotInstruction(DotType dotType, uint32_t bValue) : dotType(dotType), bValue(bValue), isStr(false) { }
+        DotInstruction(DotType dotType, uint32_t bValue, bool isStr) : dotType(dotType), bValue(bValue), isStr(false) { }
 
         DotInstruction(size_t len, uint64_t bValue) : bValue(bValue) {
             isStr = false;
@@ -200,29 +194,31 @@ namespace Instruction {
             std::string ans;
             switch (dotType) {
                 case BYTE:
-                    ans = std::string(".byte    ");
+                    ans = ".byte    ";
                     break;
                 case BYTE_2:
-                    ans = std::string(".2byte   ");
+                    ans = ".2byte   ";
                     break;
                 case BYTE_4:
-                    ans = std::string(".4byte   ");
+                    ans = ".4byte   ";
                     break;
                 case BYTE_8:
-                    ans = std::string(".8byte   ");
+                    ans = ".8byte   ";
                     break;
                 case ASCII:
-                    ans = std::string(".ascii   ");
+                    ans = ".ascii   ";
                     break;
                 case ASCIZ:
-                    ans = std::string(".asciz   ");
+                    ans = ".asciz   ";
                     break;
                 case LONG:
-                    ans = std::string(".long    ");
+                    ans = ".long    ";
                     break;
                 case WORD:
-                    ans = std::string(".word    ");
+                    ans = ".word    ";
                     break;
+                case ZERO:
+                    ans = ".zero    ";
             }
             if (isStr)
                 ans += std::to_string(bValue);

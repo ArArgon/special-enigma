@@ -17,6 +17,7 @@
 #include "Instruction.h"
 #include "IRTypes.h"
 #include "RegisterAllocation.h"
+#include "InstructionUtilities.h"
 
 namespace Backend::Translator {
     // Base class for translator
@@ -34,14 +35,14 @@ namespace Backend::Translator {
 
     public:
         TranslatorBase() = default;
+        virtual ~TranslatorBase() = 0;
         explicit TranslatorBase(IntermediateRepresentation::IRProgram irProgram) : irProgram(std::move(irProgram)) { }
         virtual Instruction::InstructionStream doTranslation() = 0;
-        virtual ~TranslatorBase() = 0;
 
         virtual const Instruction::InstructionStream& getAns() { return ans; }
     };
 
-    class SimpleTranslator : public TranslatorBase {
+    class [[deprecated]] SimpleTranslator : public TranslatorBase {
     private:
         /**
          * Label/heap description:
@@ -947,7 +948,7 @@ namespace Backend::Translator {
                     auto& pos = data.first;
                     auto& value = data.second;
                     if (pos - last_pos > 1)
-                        ins << DotInstruction(DotInstruction::ZERO, (pos - last_pos) * 4);
+                        ins << DotInstruction(DotInstruction::ZERO, (pos - last_pos) * 4, false);
                     ins << DotInstruction(DotInstruction::WORD, static_cast<uint32_t>(value));
                 }
                 if (last_pos != size - 1) {
@@ -1000,18 +1001,19 @@ namespace Backend::Translator {
                         if (it->getStmtType() == IntermediateRepresentation::MOV) {
                             // mov      %<varName>, %xxx
                             // store    %xxx, %glb_ptr_<varName>, 0
-                            *it = { IntermediateRepresentation::STORE, IntermediateRepresentation::i32, ops[1], ptrOpr, 0 };
+                            *it = { IntermediateRepresentation::STORE, IntermediateRepresentation::i32, ops[1], ptrOpr, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32,0) };
                         } else {
                             // ins      %<varName>, %xxx, ...
                             // ins      %glb_val_<varName>, %xxx, ...
 
                             // insert before
                             // load     %glb_val_<varName>, %glb_ptr_<varName>, 0
-                            it = stmts.insert(it, { IntermediateRepresentation::LOAD, IntermediateRepresentation::i32, valOpr, ptrOpr, 0 } ) + 1;
+
+                            it = stmts.insert(it, { IntermediateRepresentation::LOAD, IntermediateRepresentation::i32, valOpr, ptrOpr, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 0) } ) + 1;
 
                             // insert after
                             // store    %glb_val_<varName>, %glb_ptr_<varName>, 0
-                            it = stmts.insert(it + 1, { IntermediateRepresentation::STORE, IntermediateRepresentation::i32, valOpr, ptrOpr, 0 } ) - 1;
+                            it = stmts.insert(it + 1, { IntermediateRepresentation::STORE, IntermediateRepresentation::i32, valOpr, ptrOpr, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 0) } ) - 1;
 
                             analysis.replaceDef(sym, valOpr);
                             analysis.replaceUse(sym, valOpr);
@@ -1022,7 +1024,7 @@ namespace Backend::Translator {
                         else {
                             // insert before
                             // load     %glb_val_<varName>, %glb_ptr_<varName>, 0
-                            it = stmts.insert(it, { IntermediateRepresentation::LOAD, IntermediateRepresentation::i32, valOpr, ptrOpr, 0 } ) + 1;
+                            it = stmts.insert(it, { IntermediateRepresentation::LOAD, IntermediateRepresentation::i32, valOpr, ptrOpr, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 0) } ) + 1;
 
                             analysis.replaceUse(sym, valOpr);
                         }
@@ -1090,7 +1092,9 @@ namespace Backend::Translator {
                         auto replaceDest = ops[0];
                         if (ops[0].getIrOpType() == IntermediateRepresentation::Var)
                             replaceDest.setVarName(funcName + "_dst_" + ops[0].getVarName());
-                        replaceList.emplace_back(replaceDest, ops[1]);
+                        replaceList.push_back(replaceDest);
+                        replaceList.push_back(ops[1]);
+//                        replaceList.emplace_back(replaceDest, ops[1]);
 
                         // generate alias
                         for (int i = 1 + 1; i <= paramCount + 1; i++) {
@@ -1107,7 +1111,7 @@ namespace Backend::Translator {
                         // prepare parameters
                         // param    %<funcName>_arg_%x, -(x-4)
                         for (int i = 6; i < ops.size(); i++)
-                            it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, -(i - 4)}) + 1;
+                            it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, -(i - 4)) }) + 1;
 
                         // save return
                         // mov      %dest, %<funcName>_dst_%dest
@@ -1123,6 +1127,7 @@ namespace Backend::Translator {
 
     public:
         Translator() = default;
+        ~Translator() = default;
         explicit Translator(IntermediateRepresentation::IRProgram irProgram) : TranslatorBase(std::move(irProgram)) { }
 
         Instruction::InstructionStream doTranslation() override {
@@ -1158,7 +1163,7 @@ namespace Backend::Translator {
                 auto allocation = allocator->getAllocation();
                 auto variables = allocator->getVariables();
                 auto totalColours = allocator->getTotalColours();
-                std::vector<IntermediateRepresentation::Statement>&& stmts = func->getStatements();
+                const std::vector<IntermediateRepresentation::Statement>& stmts = func.getStatements();
 
                 // mapping colours
 //                std::list<Operands::Register> remainRegisters;
