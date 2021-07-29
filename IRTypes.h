@@ -167,6 +167,15 @@ namespace IntermediateRepresentation {
         int defaultValue;
         std::map<uint64_t , int> data;
 
+        std::string toString() const {
+            std::string ans = "arrayName: " + arrayName + ", arrSize:" + std::to_string(arrSize) + ", defaultValue: " + std::to_string(defaultValue) + ", data: [ ";
+
+            for (auto& pair : data)
+                ans += "(pos:" + std::to_string(pair.first) + ", value: " + std::to_string(pair.second) + "), ";
+
+            return ans;
+        }
+
         IRArray() = default;
 
         IRArray(std::string arrayName, size_t arrSize);
@@ -322,7 +331,7 @@ namespace IntermediateRepresentation {
         std::string toString() const {
             std::string ans = std::to_string(stmtType) + "#" + std::to_string(dataType);
             for (auto& op : Ops)
-                ans += " " + op.toString();
+                ans += " " + std::string(op.getIsPointer() ? "*" : "") + op.toString();
             return ans;
         }
 
@@ -399,6 +408,26 @@ namespace IntermediateRepresentation {
         std::vector<IROperand> parameters;
 
     public:
+        std::string toString() const {
+            std::string ans;
+
+            ans += "FuncName: " + funName + "\n";
+            ans += "ReturnType: " + std::to_string(returnType) + "\n";
+            ans += "Parameters: {\n" + [&] () {
+                std::string ret = "\t";
+                for (auto& param : parameters)
+                    ret += "[" + param.toString() + "], ";
+                return ret;
+            } () + "}";
+            ans += "Statements: {" + [&] () {
+                std::string ret;
+                for (auto& stmt : statements)
+                    ret += "\t[" + stmt.toString() + "], \n";
+                return ret;
+            } () + "}";
+            return ans;
+        }
+
         auto& operator[] (const size_t pos) {
             return statements[pos];
         }
@@ -483,6 +512,30 @@ namespace IntermediateRepresentation {
         IRProgram(std::vector<Statement> global, std::vector<Function> functions) : global(std::move(global)), functions(std::move(functions)) { }
         // default constructor
         IRProgram() = default;
+
+        std::string toString() const {
+            std::string ans = "IRProgram: \n";
+            ans += "Global: {\n" + [&] () {
+                std::string ret;
+                for (auto& stmt : global)
+                    ret += "\t[" + stmt.toString() + "],\n";
+                return ret;
+            } () + "}\n";
+            ans += "IRArray: {\n" + [&] () {
+                std::string ret;
+                for (auto& array : globalArrays)
+                    ret += "\t[" + array.toString() + "],\n";
+                return ret;
+            } () + "}\n";
+            ans += "Functions: \n" + [&] () {
+                std::string ret;
+                for (auto& func : functions)
+                    ret += func.toString() + "\n";
+                return ret;
+            } () + "\n";
+
+            return ans;
+        }
 
         const std::vector<IRArray> &getGlobalArrays() const {
             return globalArrays;
