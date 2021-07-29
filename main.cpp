@@ -1,6 +1,5 @@
 #include <iostream>
 #include "Instruction.h"
-#include "InstructionUtilities.h"
 #include "IRTypes.h"
 #include "IRTranslator.h"
 
@@ -44,14 +43,31 @@ int main() {
     IntermediateRepresentation::Function function("Test");
     IntermediateRepresentation::Statement statement(IntermediateRepresentation::ADD, IntermediateRepresentation::i32, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 32));
     using namespace IntermediateRepresentation;
-    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocator, Backend::Translator::availableRegister>();
 
-    function.insert(statement, Statement(ALLOCA, i32, IROperand(i32, 132), IROperand(i32, "5")));
-    function << statement << Statement(CMP_EQ, i32, IROperand(i32, 102), IROperand(i32, "0a"));
-    irProgram.insert(function, function);
+    /*
+     * mov      %a, 5
+     * mov      %b, 3
+     * div      %c, %a, %b
+     * return   %c
+     * */
+    function.insert(Statement(MOV, i32, IROperand(i32, "a"), IROperand(i32, 5)));
+    function << Statement { MOV, i32, IROperand(i32, "b"), IROperand(i32, 3) };
+    function << Statement { DIV, i32, IROperand(i32, "c"), IROperand(i32, "a"), IROperand(i32, "b") };
+    function << Statement { RETURN, i32, IROperand(i32, "c") };
+    irProgram.insert(function);
 
     std::cout << irProgram.toString();
-
-    testASM();
+    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocator, Backend::Translator::availableRegister>(irProgram);
+    try {
+        auto &&ins = translator.doTranslation();
+        puts("");
+        puts("[ASM]");
+        for (const auto& var : ins)
+            std::cout << *var << std::endl;
+    } catch (std::exception e) {
+        std::cerr << "Fatal error: " << e.what() << std::endl;
+        exit(-1);
+    }
+    // testASM();
     return 0;
 }

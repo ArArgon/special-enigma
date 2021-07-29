@@ -842,7 +842,7 @@ namespace Backend::Translator {
                     }
                         break;
                     case IntermediateRepresentation::PHI: {
-                        
+
                     }
                         break;
                 }
@@ -1064,62 +1064,81 @@ namespace Backend::Translator {
                         ops[1].setValue(static_cast<int>(stackScheme.allocate(ops[0], size)));
                     }
                         break;
-                    case IntermediateRepresentation::CALL: {
-                        // function call rewrite
-                        /*
-                         * call     %dest, func, %1, %2, %3, %4, %5, ..., %N
-                         *
-                         * # generate alias
-                         * mov      %<funcName>_arg_%1, %1
-                         * mov      %<funcName>_arg_%2, %2
-                         * mov      %<funcName>_arg_%3, %3
-                         * ...
-                         * mov      %<funcName>_arg_%N, %N
-                         *
-                         * # prepare parameters on the stack
-                         * param    %<funcName>_arg_%5, -1
-                         * param    %<funcName>_arg_%6, -2
-                         * param    %<funcName>_arg_%7, -3
-                         * ...
-                         * param    %<funcName>_arg_%N, -(N-4)
-                         *
-                         * call     %<funcName>_dst_%dest, func, %<funcName>_arg_%1, %<funcName>_arg_%2, ..., %<funcName>_arg_%N
-                         * mov      %dest, %<funcName>_dst_%dest
-                         * */
-                        int paramCount = static_cast<int>(ops.size()) - 2;
-                        std::string funcName = ops[1].getStrValue();
-                        std::vector<IntermediateRepresentation::IROperand> replaceList;
-                        auto replaceDest = ops[0];
-                        if (ops[0].getIrOpType() == IntermediateRepresentation::Var)
-                            replaceDest.setVarName(funcName + "_dst_" + ops[0].getVarName());
-                        replaceList.push_back(replaceDest);
-                        replaceList.push_back(ops[1]);
-//                        replaceList.emplace_back(replaceDest, ops[1]);
-
-                        // generate alias
-                        for (int i = 1 + 1; i <= paramCount + 1; i++) {
-                            auto tmpOpr = IntermediateRepresentation::IROperand(ops[i]);
-                            tmpOpr.setVarName(funcName + "_arg_" + ops[i].getVarName());
-                            replaceList.push_back(tmpOpr);
-                            // mov      %<funcName>_arg_%x, %x
-                            it = stmts.insert(it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpOpr, ops[i] } ) + 1;
-                        }
-
-                        // replace function parameters
-                        stmt.setOps(replaceList);
-
-                        // prepare parameters
-                        // param    %<funcName>_arg_%x, -(x-4)
-                        for (int i = 6; i < ops.size(); i++)
-                            it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, -(i - 4)) }) + 1;
-
-                        // save return
-                        // mov      %dest, %<funcName>_dst_%dest
-                        if (ops[0].getIrOpType() == IntermediateRepresentation::Var)
-                            it = stmts.insert(it + 1, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, ops[0], replaceDest} ) - 1;
-                    }
+                    case IntermediateRepresentation::CALL:
                     default:
                         break;
+                }
+            }
+
+            // rewrite function
+            for (auto it = stmts.begin(); it != stmts.end(); it++) {
+                auto& stmt = *it;
+                auto ops = stmt.getRefOps();
+                if (stmt.getStmtType() == IntermediateRepresentation::CALL) {
+                    // function call rewrite
+                    /*
+                     * call     %dest, func, %1, %2, %3, %4, %5, ..., %N
+                     *
+                     * # generate alias
+                     * mov      %<funcName>_arg_%1, %1
+                     * mov      %<funcName>_arg_%2, %2
+                     * mov      %<funcName>_arg_%3, %3
+                     * ...
+                     * mov      %<funcName>_arg_%N, %N
+                     *
+                     * # prepare parameters on the stack
+                     * param    %<funcName>_arg_%5, -1
+                     * param    %<funcName>_arg_%6, -2
+                     * param    %<funcName>_arg_%7, -3
+                     * ...
+                     * param    %<funcName>_arg_%N, -(N-4)
+                     *
+                     * call     %<funcName>_dst_%dest, func, %<funcName>_arg_%1, %<funcName>_arg_%2, ..., %<funcName>_arg_%N
+                     * mov      %dest, %<funcName>_dst_%dest
+                     * */
+                    int paramCount = static_cast<int>(ops.size()) - 2;
+                    std::string funcName = ops[1].getStrValue();
+                    std::vector<IntermediateRepresentation::IROperand> replaceList;
+                    auto replaceDest = ops[0];
+                    if (ops[0].getIrOpType() == IntermediateRepresentation::Var)
+                        replaceDest.setVarName(funcName + "_dst_" + ops[0].getVarName());
+                    replaceList.push_back(replaceDest);
+                    replaceList.push_back(ops[1]);
+
+                    // generate alias
+                    for (int i = 1 + 1; i <= paramCount + 1; i++) {
+                        auto tmpOpr = IntermediateRepresentation::IROperand(ops[i]);
+                        tmpOpr.setVarName(funcName + "_arg_" + ops[i].getVarName());
+                        replaceList.push_back(tmpOpr);
+                        // mov      %<funcName>_arg_%x, %x
+                        it = stmts.insert(it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpOpr, ops[i] } ) + 1;
+                    }
+
+                    // replace function parameters
+                    it->setOps(replaceList);
+
+                    // prepare parameters
+                    // param    %<funcName>_arg_%x, -(x-4)
+                    for (int i = 6; i < ops.size(); i++)
+                        it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, -(i - 4)) }) + 1;
+
+                    // save return
+                    // mov      %dest, %<funcName>_dst_%dest
+                    if (ops[0].getIrOpType() == IntermediateRepresentation::Var)
+                        it = stmts.insert(it + 1, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, ops[0], replaceDest} ) - 1;
+                }
+            }
+
+            // safe return
+            if (stmts.rbegin()->getStmtType() != IntermediateRepresentation::RETURN) {
+                // append return
+                if (func.getReturnType() == IntermediateRepresentation::t_void) {
+                    // return;
+                    stmts.emplace_back(IntermediateRepresentation::RETURN, IntermediateRepresentation::t_void, IntermediateRepresentation::IROperand());
+                }
+                else if (func.getReturnType() == IntermediateRepresentation::t_void) {
+                    // return 0;
+                    stmts.emplace_back(IntermediateRepresentation::RETURN, IntermediateRepresentation::i32, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 0));
                 }
             }
 
@@ -1158,12 +1177,15 @@ namespace Backend::Translator {
                  * */
                 preProcFunc(func, stackLayout, globalMapping, globalSymbols);
 
+                std::cout << "After preprocessing: " << std::endl << func.toString();
+
                 allocator = std::make_unique<allocator_t>(allocator_t (stackLayout, func));
 
                 auto allocation = allocator->getAllocation();
                 auto variables = allocator->getVariables();
                 auto totalColours = allocator->getTotalColours();
                 const std::vector<IntermediateRepresentation::Statement>& stmts = func.getStatements();
+                std::cerr << "Translator: Register assignment complete" << std::endl;
 
                 // mapping colours
 //                std::list<Operands::Register> remainRegisters;
@@ -1171,9 +1193,9 @@ namespace Backend::Translator {
                 std::unordered_map<IntermediateRepresentation::IROperand, Operands::Register> mapping;
                 Operands::RegisterList list;
                 size_t pushSize = 0;
-                
+
                 list.emplaceRegister(r4, r5, r6, r7, r8, r9);
-                
+
 //                remainRegisters.emplace_back(r0, r1, r2, r3, r4, r5, r6, r7, r8);
 //                for (auto colour : totalColours) {
 //                    colourScheme[colour] = remainRegisters.front();
@@ -1188,7 +1210,8 @@ namespace Backend::Translator {
                 /*
                  * function init
                  * */
-
+                // <funcName>:
+                ins << LabelInstruction(func.getFunName());
                 // push { rx, rx, ..., fp, lr, sp }
                 list.emplaceRegister(fp, lr, sp);
                 ins << PushInstruction(list);
@@ -1276,7 +1299,8 @@ namespace Backend::Translator {
                             int pos = ops[1].getValue();
                             if (pos >= 0) {
                                 if (pos <= 3) {
-                                    ins << MoveInstruction(mapping[ops[0]], numToReg[pos]);
+                                    if (numToReg[pos] != mapping[ops[0]])
+                                        ins << MoveInstruction(mapping[ops[0]], numToReg[pos]);
                                 } else {
                                     // TODO calculate offset
                                     ins << LoadInstruction(mapping[ops[0]], Operands::LoadSaveOperand(lr, 4 * pushSize + (pos - 5) * 4, true));
@@ -1309,7 +1333,8 @@ namespace Backend::Translator {
                             // mov      r0, ?
                             if (func.getReturnType() != IntermediateRepresentation::t_void) {
                                 if (ops[0].getIrOpType() == IntermediateRepresentation::Var)
-                                    ins << MoveInstruction(r0, mapping[ops[0]]);
+                                    if (mapping[ops[0]] != r0)
+                                        ins << MoveInstruction(r0, mapping[ops[0]]);
                                 else {
 #warning "Imm16 is not implemented"
                                     ins << MoveInstruction(r0, imm16(ops[0].getValue()));
@@ -1333,7 +1358,8 @@ namespace Backend::Translator {
                             if (ops[1].getIrOpType() == IntermediateRepresentation::ImmVal) {
                                 ins << MoveInstruction(mapping[ops[0]], imm16(ops[1].getValue()));
                             } else {
-                                ins << MoveInstruction(mapping[ops[0]], mapping[ops[1]]);
+                                if (mapping[ops[0]] != mapping[ops[1]])
+                                    ins << MoveInstruction(mapping[ops[0]], mapping[ops[1]]);
                             }
                         }
                             break;
@@ -1394,7 +1420,7 @@ namespace Backend::Translator {
                         case IntermediateRepresentation::CMP_EQ: {
                             /*
                              * cmp_xx       %dest, %opr1, %opr2
-                             * 
+                             *
                              * cmp          %opr1, %opr2
                              * moveq        %dest, #1
                              * */

@@ -217,6 +217,8 @@ namespace IntermediateRepresentation {
                     return opStr + " " + valTypeStr + " " + varName;
                 case Null:
                     return opStr + " " + valTypeStr;
+                default:
+                    throw std::runtime_error("Invalid IR: unexpected IROperand type: " + std::to_string(irOpType));
             }
         }
 

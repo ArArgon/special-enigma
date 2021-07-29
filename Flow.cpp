@@ -45,6 +45,8 @@ namespace Backend::Flow {
             if (stmts.empty())
                 continue;
             auto& stmt = (stmts.end() - 1)->statement;
+            if (!cfg.containsNode(bb))
+                cfg.newNode(bb);
             if (stmt->getStmtType() == IntermediateRepresentation::BR) {
                 auto& ops = stmt->getOps();
                 if (ops.size() == 1) {
@@ -96,7 +98,7 @@ namespace Backend::Flow {
                 continue;
             stmts[size - 1].live = Util::set_union(stmts[size - 1].use, Util::set_diff(bb->getLiveOut(), stmts[size - 1].def));
             for (int i = size - 2; i >= 0; i--) {
-                auto &cur = stmts[i], &last = stmts[i - 1];
+                auto &cur = stmts[i], &last = stmts[i + 1];
                 cur.live = Util::set_union(Util::set_diff(last.live, cur.def), cur.use);
             }
         }
@@ -137,6 +139,8 @@ namespace Backend::Flow {
                 /*
                 * opr %dest, %opr1, %opr2, ...
                 * */
+                if (ops[0].getIrOpType() != IntermediateRepresentation::Var)
+                    throw std::runtime_error("Invalid IR: destination must be a variable. Entailed IR: " + stmt.toString());
                 ans.def.insert(ops[0]);
                 for (auto it = ops.begin() + 1; it != ops.end(); it++) {
                     if (it->getIrOpType() == IntermediateRepresentation::Var)
@@ -239,6 +243,10 @@ namespace Backend::Flow {
 
     void BasicBlock::BBStatement::replaceDef(const IntermediateRepresentation::IROperand &oldVar,
                                              const IntermediateRepresentation::IROperand &newVar) {
+        if (oldVar.getIrOpType() != IntermediateRepresentation::Var)
+            throw std::runtime_error("Unable to replace def: " + oldVar.getVarName() + " is not a variable");
+        if (newVar.getIrOpType() != IntermediateRepresentation::Var)
+            throw std::runtime_error("Unable to replace def: " + newVar.getVarName() + " is not a variable");
         if (!def.count(oldVar))
             throw std::runtime_error("Unable to replace def: " + oldVar.getVarName() + " doesn't present in the instruction");
         def.erase(oldVar);

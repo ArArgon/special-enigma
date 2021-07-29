@@ -13,6 +13,7 @@
 #include <ostream>
 
 #include "InstructionOperands.h"
+#include "InstructionUtilities.h"
 
 namespace Instruction {
     // Enumerations
@@ -69,37 +70,26 @@ namespace Instruction {
             switch (cond) {
                 case Cond_NO:
                     return "";
-                    break;
                 case Cond_Equal:
                     return "eq";
-                    break;
                 case Cond_NotEqual:
                     return "ne";
-                    break;
                 case Cond_SGreaterEqual:
                     return "ge";
-                    break;
                 case Cond_SLessEqual:
                     return "le";
-                    break;
                 case Cond_SGreater:
                     return "gt";
-                    break;
                 case Cond_SLess:
                     return "lt";
-                    break;
                 case Cond_UGreaterEqual:
                     return "hs";
-                    break;
                 case Cond_ULessEqual:
                     return "ls";
-                    break;
                 case Cond_UGreater:
                     return "hi";
-                    break;
                 case Cond_ULess:
                     return "lo";
-                    break;
             }
         }
     };
@@ -191,40 +181,41 @@ namespace Instruction {
         }
 
         std::string toASM() const override {
-            std::string ans;
+            std::string ins;
             switch (dotType) {
                 case BYTE:
-                    ans = ".byte    ";
+                    ins = ".byte";
                     break;
                 case BYTE_2:
-                    ans = ".2byte   ";
+                    ins = ".2byte";
                     break;
                 case BYTE_4:
-                    ans = ".4byte   ";
+                    ins = ".4byte";
                     break;
                 case BYTE_8:
-                    ans = ".8byte   ";
+                    ins = ".8byte";
                     break;
                 case ASCII:
-                    ans = ".ascii   ";
+                    ins = ".ascii";
                     break;
                 case ASCIZ:
-                    ans = ".asciz   ";
+                    ins = ".asciz";
                     break;
                 case LONG:
-                    ans = ".long    ";
+                    ins = ".long";
                     break;
                 case WORD:
-                    ans = ".word    ";
+                    ins = ".word";
                     break;
                 case ZERO:
-                    ans = ".zero    ";
+                    ins = ".zero";
             }
+            std::string opr;
             if (isStr)
-                ans += std::to_string(bValue);
+                opr = std::to_string(bValue);
             else
-                ans += "\"" + sValue + "\"";
-            return ans;
+                opr = "\"" + sValue + "\"";
+            return Utilities::ASMFormatter(ins, opr).toASM();
         }
     };
 
@@ -243,7 +234,7 @@ namespace Instruction {
         }
 
         std::string toASM() const override  {
-            return labelName + ":";
+            return Utilities::ASMFormatter(labelName + ":").toASM();
         }
     };
 
@@ -292,25 +283,26 @@ namespace Instruction {
         }
 
         std::string toASM() const override  {
-            std::string ans = "b";
+            std::string ins, opr;
             switch (branchType) {
                 case B:
-                    ans += " ";
+                    ins += "b";
                     break;
                 case BL:
-                    ans += "l ";
+                    ins += "bl";
                     break;
                 case BLX:
-                    ans += "lx ";
+                    ins += "blx";
+                    break;
                 case BX:
-                    ans += "x ";
+                    ins += "bx";
+                    break;
                 default:
                     throw std::runtime_error(std::string("Unexpected branch type: ") + std::to_string(branchType));
             }
-            if (toRegister)
-                return ans + targetRegister.toASM();
-            return ans + targetLabel;
-            return ans + targetLabel;
+            ins += condition.toASM();
+            opr = toRegister ? targetRegister.toASM() : targetLabel;
+            return Utilities::ASMFormatter(ins, opr).toASM();
         }
     };
 
@@ -367,13 +359,13 @@ namespace Instruction {
         }
 
         std::string toASM() const override  {
-            std::string ans = asm_name();
+            std::string ins = asm_name() + condition.toASM(), opr;
             if (update)
-                ans += "s";
+                ins += "s";
             const Operands::Operand* source_2 = isImmediate ? static_cast<const Operands::Operand *>(&source_2_imm)
                                                             : static_cast<const Operands::Operand *>(&source_2_flex);
-            ans += " " + target.toASM() + ", " + source_1.toASM() + ", " + source_2->toASM();
-            return ans;
+            opr = target.toASM() + ", " + source_1.toASM() + ", " + source_2->toASM();
+            return Utilities::ASMFormatter(ins, opr).toASM();
         }
     };
 
@@ -413,13 +405,13 @@ namespace Instruction {
 
     public:
         std::string toASM() const override {
-            std::string ans;
-            ans += shiftASM[type] + " " + target.toASM() + ", " + source.toASM() + ", ";
+            std::string ins = shiftASM[type] + condition.toASM(), opr;
+            opr = target.toASM() + ", " + source.toASM() + ", ";
             if (useRegister)
-                ans += bits.toASM();
+                opr += bits.toASM();
             else
-                ans += "#" + std::to_string(immBits);
-            return ans;
+                opr += "#" + std::to_string(immBits);
+            return Utilities::ASMFormatter(ins, opr).toASM();
         }
     };
 
@@ -483,10 +475,10 @@ namespace Instruction {
             if (instructionType > BitType::BIC)
                 throw std::runtime_error(std::string("Unexpected bit instruction type: ") + std::to_string(instructionType));
 
-            std::string ins = bitTable[instructionType];
+            std::string ins = bitTable[instructionType] + condition.toASM();
             if (update)
                 ins += "s";
-            return ins + " " + target.toASM() + ", " + source_1.toASM() + ", " + source_2.toASM();
+            return Utilities::ASMFormatter(ins, target.toASM() + ", " + source_1.toASM() + ", " + source_2.toASM()).toASM();
         }
     };
 
@@ -533,7 +525,7 @@ namespace Instruction {
             if (instructionType > CMPType::TEQ)
                 throw std::runtime_error(std::string("Unexpected comparison instruction type: ") + std::to_string(instructionType));
 
-            return bitTable[instructionType] + " " + source_1.toASM() + ", " + source_2.toASM();
+            return Utilities::ASMFormatter(bitTable[instructionType] + condition.toASM(), source_1.toASM() + ", " + source_2.toASM()).toASM();
         }
 
     };
@@ -553,7 +545,7 @@ namespace Instruction {
         }
 
         std::string toASM() const override {
-            return std::string("push " + registerList.toASM());
+            return Utilities::ASMFormatter("push", registerList.toASM()).toASM();
         }
     };
 
@@ -572,7 +564,7 @@ namespace Instruction {
         }
 
         std::string toASM() const override {
-            return std::string("pop " + registerList.toASM());
+            return Utilities::ASMFormatter("pop", registerList.toASM()).toASM();
         }
     };
 
@@ -586,7 +578,7 @@ namespace Instruction {
                 : destReg(destReg), resOpr2(resOpr2), update(update) { }
 
         std::string toASM() const override {
-            return "mvn" + (update ? std::string("s ") : std::string(" ")) + destReg.toASM() + ", " + resOpr2.toASM();
+            return Utilities::ASMFormatter("mvn" + condition.toASM() + (update ? std::string("s") : std::string("")), destReg.toASM() + ", " + resOpr2.toASM()).toASM();
         }
 
     };
@@ -629,18 +621,19 @@ namespace Instruction {
                 : destReg(destReg), resImm16(resImm16), update(update), isOpr2(false), position(position) { }
 
         std::string toASM() const override {
-            std::string ans = "mov";
+            std::string ins = "mov", opr;
             if (position == HIGH)
-                ans += "t";
+                ins += "t";
             else if (position == LOW)
-                ans += "w";
-            ans += update ? "s " : " ";
-            ans += destReg.toASM();
+                ins += "w";
+            ins += condition.toASM();
+            ins += update ? "s" : "";
+            opr = destReg.toASM() + ", ";
             if (isOpr2)
-                ans += resOpr2.toASM();
+                opr += resOpr2.toASM();
             else
-                ans += resImm16.toASM();
-            return ans;
+                opr += resImm16.toASM();
+            return Utilities::ASMFormatter(ins, opr).toASM();
         }
     };
 
@@ -665,26 +658,24 @@ namespace Instruction {
                 : bitSize(bitSize), target(std::move(target)), source(std::move(source)) { }
 
         std::string toASM() const override {
-            std::string ans = protoName();
+            std::string ins = protoName();
             switch (bitSize) {
                 case bit_DEF:
-                    ans += " ";
                     break;
                 case bit_B:
-                    ans += "b ";
+                    ins += "b";
                     break;
                 case bit_SB:
-                    ans += "sb ";
+                    ins += "sb";
                     break;
                 case bit_H:
-                    ans += "h ";
+                    ins += "h";
                     break;
                 case bit_SH:
-                    ans += "sh ";
+                    ins += "sh";
                     break;
             }
-            ans += target.toASM() + ", " + source.toASM();
-            return ans;
+            return Utilities::ASMFormatter(ins, target.toASM() + ", " + source.toASM()).toASM();
         }
     };
 
@@ -705,26 +696,24 @@ namespace Instruction {
 
         std::string toASM() const override {
             if (destIsLabel) {
-                std::string ans = "ldr";
+                std::string ins = "ldr";
                 switch (bitSize) {
                     case bit_DEF:
-                        ans += " ";
                         break;
                     case bit_B:
-                        ans += "b ";
+                        ins += "b";
                         break;
                     case bit_SB:
-                        ans += "sb ";
+                        ins += "sb";
                         break;
                     case bit_H:
-                        ans += "h ";
+                        ins += "h";
                         break;
                     case bit_SH:
-                        ans += "sh ";
+                        ins += "sh";
                         break;
                 }
-                ans += target.toASM() + ", " + label;
-                return ans;
+                return Utilities::ASMFormatter(ins, target.toASM() + ", " + label).toASM();
             } else
                 return LoadSaveProto::toASM();
         }

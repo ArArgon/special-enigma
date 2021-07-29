@@ -5,6 +5,7 @@
 #ifndef SYSYBACKEND_INSTRUCTIONOPERANDS_H
 #define SYSYBACKEND_INSTRUCTIONOPERANDS_H
 
+#include <vector>
 #include <string>
 #include <bitset>
 #include <functional>
@@ -100,6 +101,14 @@ namespace Instruction::Operands {
     class Register : public Operand {
         ARMv7_Register reg = R0;
     public:
+        bool operator==(const Register &rhs) const {
+            return reg == rhs.getReg();
+        }
+
+        bool operator!=(const Register &rhs) const {
+            return !(rhs == *this);
+        }
+
         explicit Register(ARMv7_Register reg) : reg(reg) {}
         Register() = default;
 

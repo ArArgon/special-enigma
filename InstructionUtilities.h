@@ -5,22 +5,27 @@
 #ifndef SYSYBACKEND_INSTRUCTIONUTILITIES_H
 #define SYSYBACKEND_INSTRUCTIONUTILITIES_H
 
-#include "Instruction.h"
+#include <string>
+#include "InstructionOperands.h"
 
 namespace Instruction::Utilities {
     /*
     * Immediate number abbr
     * */
-    bool isTooLong(int32_t val) {
-        uint32_t u_val = reinterpret_cast<int32_t>(val);
-        while (!(u_val & 1))
-            u_val >>= 1;
-        int high;
-        for (high = 31; high > 15; high--)
-            if (u_val & 1 << (high))
-                break;
-        return high > 15;
-    }
+    bool isTooLong(int32_t val);
+
+    class ASMFormatter {
+        std::string ins, opr;
+        bool isLabel;
+
+        static bool usingTab;
+    public:
+        ASMFormatter(const std::string &ins, const std::string &opr) : ins(ins), opr(opr), isLabel(false) { }
+
+        ASMFormatter(const std::string &ins) : ins(ins), isLabel(true) { }
+
+        std::string toASM() const;
+    };
 
     namespace Abbr {
         typedef Operands::ImmediateNumber<8> imm8;

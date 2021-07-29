@@ -93,8 +93,8 @@ namespace Backend::Util {
             degree[nodeToId.at(node)] = value;
         }
 
-        std::set<NodeType> getNeighbours(const NodeType& node) {
-            std::set<NodeType> ans;
+        std::unordered_set<NodeType> getNeighbours(const NodeType& node) {
+            std::unordered_set<NodeType> ans;
             size_t id = nodeToId[node];
 
             for (auto& suc : G[id])
@@ -110,18 +110,22 @@ namespace Backend::Util {
         std::unordered_set<NodeType> getPrecursorsOf(const NodeType& node) const {
             std::unordered_set<NodeType> ans;
             int id_n = nodeToId.at(node);
-            auto& n_pre = successors.at(id_n);
-            for (auto& pre : n_pre)
-                ans.insert(idToNode.at(pre));
+            if (precursors.count(id_n)) {
+                auto& n_pre = precursors.at(id_n);
+                for (auto& pre : n_pre)
+                    ans.insert(idToNode.at(pre));
+            }
             return ans;
         }
 
         std::unordered_set<NodeType> getSuccessorsOf(const NodeType& node) const {
             std::unordered_set<NodeType> ans;
             int id_n = nodeToId.at(node);
-            auto& n_suc = successors.at(id_n);
-            for (auto& suc : n_suc)
-                ans.insert(idToNode.at(suc));
+            if (successors.count(id_n)) {
+                auto& n_suc = successors.at(id_n);
+                for (auto& suc : n_suc)
+                    ans.insert(idToNode.at(suc));
+            }
             return ans;
         }
 
