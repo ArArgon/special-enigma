@@ -212,11 +212,11 @@ namespace IntermediateRepresentation {
             std::string opStr = Utility::IROpTypeToStr[irOpType], valTypeStr = Utility::IRDataTypeToStr[irValType];
             switch (irOpType) {
                 case ImmVal:
-                    return opStr + "#" + valTypeStr + "#" + (irValType == i32 ? std::to_string(Value) : strValue);
+                    return opStr + " " + valTypeStr + " " + (irValType == i32 ? std::to_string(Value) : strValue);
                 case Var:
-                    return opStr + "#" + valTypeStr + "#" + varName;
+                    return opStr + " " + valTypeStr + " " + varName;
                 case Null:
-                    return opStr + "#" + valTypeStr;
+                    return opStr + " " + valTypeStr;
             }
         }
 
@@ -332,7 +332,7 @@ namespace IntermediateRepresentation {
     public:
 
         std::string toString() const {
-            std::string ans = Utility::IRStmtTypeToStr[stmtType] + "#" + Utility::IRDataTypeToStr[dataType];
+            std::string ans = Utility::IRStmtTypeToStr[stmtType] + " " + Utility::IRDataTypeToStr[dataType];
             for (auto& op : Ops)
                 ans += " [" + std::string(op.getIsPointer() ? "*" : "") + op.toString() + "]";
             return ans;
@@ -415,14 +415,14 @@ namespace IntermediateRepresentation {
             std::string ans;
 
             ans += "FuncName: " + funName + "\n";
-            ans += "ReturnType: " + std::to_string(returnType) + "\n";
+            ans += "ReturnType: " + Utility::IRDataTypeToStr[returnType] + "\n";
             ans += "Parameters: {\n" + [&] () {
                 std::string ret = "\t";
                 for (auto& param : parameters)
                     ret += "[" + param.toString() + "], ";
                 return ret;
-            } () + "}";
-            ans += "Statements: {" + [&] () {
+            } () + "\n}\n";
+            ans += "Statements: {\n" + [&] () {
                 std::string ret;
                 for (auto& stmt : statements)
                     ret += "\t[" + stmt.toString() + "], \n";

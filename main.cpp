@@ -49,6 +49,9 @@ int main() {
     function.insert(statement, Statement(ALLOCA, i32, IROperand(i32, 132), IROperand(i32, "5")));
     function << statement << Statement(CMP_EQ, i32, IROperand(i32, 102), IROperand(i32, "0a"));
     irProgram.insert(function, function);
+
+    std::cout << irProgram.toString();
+
     testASM();
     return 0;
 }
