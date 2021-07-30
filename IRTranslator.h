@@ -1096,6 +1096,20 @@ namespace Backend::Translator {
                      * call     %<funcName>_dst_%dest, func, %<funcName>_arg_%1, %<funcName>_arg_%2, ..., %<funcName>_arg_%N
                      * mov      %dest, %<funcName>_dst_%dest
                      * */
+
+                    /*
+                     * call     null, func, %1
+                     *
+                     * Placeholders are needed
+                     *
+                     * mov      %func_arg_%1, %1
+                     *
+                     * param    %func_arg_placeholder_1, null
+                     * param    %func_arg_placeholder_2, null
+                     *
+                     * call     null, func, %1, %func_arg_placeholder_1, %func_arg_placeholder_2
+                     *
+                     * */
                     int paramCount = static_cast<int>(ops.size()) - 2;
                     std::string funcName = ops[1].getStrValue();
                     std::vector<IntermediateRepresentation::IROperand> replaceList;
@@ -1112,6 +1126,17 @@ namespace Backend::Translator {
                         replaceList.push_back(tmpOpr);
                         // mov      %<funcName>_arg_%x, %x
                         it = stmts.insert(it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpOpr, ops[i] } ) + 1;
+                    }
+
+                    // insert placeholders
+                    if (paramCount < 4) {
+                        for (int i = paramCount + 1; i <= 4; i++) {
+                            auto tmpOpr = IntermediateRepresentation::IROperand(IntermediateRepresentation::t_void, "");
+                            tmpOpr.setVarName(funcName + "_placeholder_" + std::to_string(i - 1));
+                            replaceList.push_back(tmpOpr);
+                            // param        %<func>_arg_placeholder_x, null
+                            it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::t_void, tmpOpr, IntermediateRepresentation::IROperand() } ) + 1;
+                        }
                     }
 
                     // replace function parameters
@@ -1296,6 +1321,9 @@ namespace Backend::Translator {
                             throw std::invalid_argument("mod or sub has been preprocessed and should not appear in translation");
                             break;
                         case IntermediateRepresentation::PARAM: {
+                            // this is a placeholder
+                            if (ops[1].getIrDataType() == IntermediateRepresentation::t_void)
+                                break;
                             int pos = ops[1].getValue();
                             if (pos >= 0) {
                                 if (pos <= 3) {

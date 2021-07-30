@@ -319,7 +319,7 @@ namespace IntermediateRepresentation {
         }
 
         // Empty constructor
-        IROperand() : irOpType(Null), Value(0), varName("") { }
+        IROperand() : irOpType(Null), Value(0), irValType(t_void) { }
     };
 
     class Statement {
