@@ -38,6 +38,50 @@ void testASM() {
         std::cout << *var << std::endl;
 }
 
+void runner(const IntermediateRepresentation::IRProgram& irProgram) {
+    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocator, Backend::Translator::availableRegister>(irProgram);
+    try {
+        auto ins = translator.doTranslation();
+        puts("");
+        puts("[ASM]");
+        for (const auto& var : ins)
+            std::cout << *var << std::endl;
+    } catch (std::exception e) {
+        std::cerr << "Fatal error: " << e.what() << std::endl;
+        exit(-1);
+    }
+}
+
+void testCase1() {
+    using namespace IntermediateRepresentation;
+    IRProgram program;
+    Function function("Test");
+
+    auto a = IROperand(i32, "a"), b = IROperand(i32, "b"),
+         c = IROperand(i32, "c"), d = IROperand(i32, "d"),
+         e = IROperand(i32, "e"), f = IROperand(i32, "f");
+
+    auto genImm = [] (int imm) {
+        return IROperand(i32, imm);
+    };
+
+    function.setParameters( {
+        a, b, c, d, e, f
+    } );
+//
+//    function << Statement { ADD, i32, a, b, a };
+//    function << Statement { SUB, i32, b, c, a };
+//    function << Statement { MOD, i32, d, a, b };
+    function << Statement { CALL, i32, d, IROperand("Test2"), c, a, d, b, genImm(100), genImm(300) };
+    function << Statement { ADD, i32, d, e, f };
+    function << Statement { RETURN, i32, d };
+
+    program.setFunctions( { function } );
+    std::cout << program.toString() << std::endl;
+
+    runner(program);
+}
+
 int main() {
     IntermediateRepresentation::IRProgram irProgram;
     IntermediateRepresentation::Function function("Test");
@@ -56,18 +100,20 @@ int main() {
     function << Statement { RETURN, i32, IROperand(i32, "c") };
     irProgram.insert(function);
 
-    std::cout << irProgram.toString();
-    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocator, Backend::Translator::availableRegister>(irProgram);
-    try {
-        auto &&ins = translator.doTranslation();
-        puts("");
-        puts("[ASM]");
-        for (const auto& var : ins)
-            std::cout << *var << std::endl;
-    } catch (std::exception e) {
-        std::cerr << "Fatal error: " << e.what() << std::endl;
-        exit(-1);
-    }
+    testCase1();
+
+//    std::cout << irProgram.toString();
+//    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocator, Backend::Translator::availableRegister>(irProgram);
+//    try {
+//        auto &&ins = translator.doTranslation();
+//        puts("");
+//        puts("[ASM]");
+//        for (const auto& var : ins)
+//            std::cout << *var << std::endl;
+//    } catch (std::exception e) {
+//        std::cerr << "Fatal error: " << e.what() << std::endl;
+//        exit(-1);
+//    }
     // testASM();
     return 0;
 }

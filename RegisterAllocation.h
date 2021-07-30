@@ -80,6 +80,19 @@ namespace Backend::RegisterAllocation {
         std::list<var_t> selectStack;
         Util::DisjointSet<var_t> alias;
 
+        void addEdge(const var_t& u, const var_t& v) {
+            if (u != v && !interferenceGraph.containsEdge(u, v)) {
+                interferenceGraph.insertAdj(u, v);
+                interferenceGraph.insertAdj(v, u);
+                if (!preColoured.count(u)) {
+                    interferenceGraph.addEdge(u, v);
+                }
+                if (!preColoured.count(v)) {
+                    interferenceGraph.addEdge(v, u);
+                }
+            }
+        }
+
         /*
          * Logic check: Pass
          * */
@@ -87,8 +100,8 @@ namespace Backend::RegisterAllocation {
             std::set<is_t> ans;
             auto& list = moveList[node];
             for (auto& move : list) {
-                if (activeMoves.count(move) + workListMoves.count(move))
-                    ans.insert(move);
+                if (!(activeMoves.count(move) + workListMoves.count(move)))
+                    ans.erase(move);
             }
             return ans;
         }
@@ -153,7 +166,7 @@ namespace Backend::RegisterAllocation {
             Util::set_union_to(moveList[u], moveList[v]);
             auto&& adj = adjacent(v);
             for (auto& t : adj) {
-                interferenceGraph.addBiEdge(t, u);
+                addEdge(t, u);
                 decrementDegree(t);
             }
             if (interferenceGraph.getNodeDegree(u) >= registerCount && freezeWorklist.count(u)) {
@@ -364,14 +377,11 @@ namespace Backend::RegisterAllocation {
                 return statement->statement->getStmtType() == IntermediateRepresentation::MOV
                         && statement->statement->getOps()[1].getIrOpType() == IntermediateRepresentation::Var;
             };
-//        moveList.clear();
-//        workListMoves.clear();
-
             for (auto& bb : basicBlocks) {
                 auto live = bb->liveOut;
                 auto& statements = bb->statements;
-                for (int i = static_cast<int>(statements.size()) - 1; i >= 0; i--) {
-                    auto ins = is_t { &statements[i] };
+                for (auto it = statements.rbegin(); it != statements.rend(); it++) {
+                    auto ins = is_t { &*it };
                     if (isMoveRelated(ins)) {
                         live = Util::set_diff(live, ins->use);
                         auto moveRelated = ins->use;
@@ -383,7 +393,7 @@ namespace Backend::RegisterAllocation {
                     Util::set_union_to(live, ins->def);
                     for (auto& def : ins->def)
                         for (auto& liv : live)
-                            interferenceGraph.addBiEdge(def, liv);
+                            addEdge(liv, def);
 
                     live = Util::set_union(ins->use, Util::set_diff(live, ins->def));
                 }
@@ -513,6 +523,17 @@ namespace Backend::RegisterAllocation {
             cfg = flowAnalyzer->getCfg();
             basicBlocks = flowAnalyzer->getBasicBlocks();
 
+            for (auto& bb : basicBlocks) {
+                std::cout << "Statement: " << std::endl;
+                int i = 0;
+                for (auto& ins : bb->statements) {
+                    std::cout << ++i << "\t\tlive: ";
+                    for (auto& liv : ins.live)
+                        std::cout << "[" << liv.toString() <<"], ";
+                    std::cout << std::endl;
+                }
+            }
+
             // structures
             interferenceGraph = InterferenceGraph();
             moveList.clear();
@@ -540,6 +561,10 @@ namespace Backend::RegisterAllocation {
             }
 
             alias = Util::DisjointSet<var_t>(initial);
+
+            for (auto& node : initial)
+                interferenceGraph.newNode(node);
+
             initial = Util::set_diff(initial, preColoured);
 
             // calculate weight
@@ -601,6 +626,13 @@ namespace Backend::RegisterAllocation {
              * %1, %2, %3, %4 = r0, r1, r2, r3
              * */
             auto& stmts = func.getStatements();
+            auto& params = func.getParameters();
+
+            // function parameters
+            for (int i = 0; i < std::min(4, (int) params.size()); i++) {
+                preColoured.insert(params[i]);
+                preColourScheme[params[i]] = i;
+            }
 
             for (auto& stmt : stmts) {
                 auto& ops = stmt.getOps();
@@ -618,8 +650,18 @@ namespace Backend::RegisterAllocation {
                             preColourScheme[ops[i]] = i - 2;
                         }
                     }
+                } else if (stmt.getStmtType() == IntermediateRepresentation::RETURN) {
+                    if (stmt.getDataType() != IntermediateRepresentation::t_void && ops[0].getIrOpType() == IntermediateRepresentation::Var) {
+                        // return   %xxx
+                        preColoured.insert(ops[0]);
+                        preColourScheme[ops[0]] = 0;
+                    }
                 }
             }
+
+            std::cout << "Pre-colour scheme: " << std::endl;
+            for (auto& node : preColourScheme)
+                std::cout << "\t" << node.first.toString() << ": " << node.second << std::endl;
 
             doFunctionScan();
             auto&& nodes = interferenceGraph.getNodes();

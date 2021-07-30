@@ -66,6 +66,10 @@ namespace Backend::Util {
             return nodeToId.count(node) != 0;
         }
 
+        void insertAdj(const NodeType& a, const NodeType& b) {
+            adjSet.template emplace(a, b);
+        }
+
         void addEdge(const NodeType& a, const NodeType& b) {
             // a -> b
             if (!containsNode(a))
@@ -75,7 +79,8 @@ namespace Backend::Util {
             int id_a = nodeToId[a], id_b = nodeToId[b];
             if (id_a == id_b)
                 return;
-            adjSet.template emplace(a, b);
+            if (!containsEdge(a, b))
+                adjSet.emplace(a, b);
             degree[id_a]++;
             G[id_a].insert(id_b);
             precursors[id_b].insert(id_a);

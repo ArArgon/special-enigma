@@ -962,17 +962,24 @@ namespace Backend::Translator {
                          const std::unordered_map<std::string, std::string>& globalMapping,
                          const std::unordered_set<IntermediateRepresentation::IROperand>& globalSymbols) {
             auto &stmts = func.getRefStatements();
-            auto &params = func.getParameters();
+            auto params = func.getParameters();
 
             /*
-             * param    %dest, #pos
+             * param    %param_dest, #pos
+             * mov      %dest,  %param
              * */
             if (!params.empty()) {
                 int pos = params.size() - 1;
-                for (auto rit = params.rbegin(); rit != params.rend(); rit--) {
-                    stmts.insert(stmts.begin(),{ IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, *rit, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, pos--) } );
+                auto st_it = stmts.begin();
+                for (auto rit = params.rbegin(); rit != params.rend(); rit++) {
+                    auto tmpOpr = *rit;
+                    rit->setVarName("param_" + tmpOpr.getVarName());
+                    st_it = stmts.insert(st_it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, *rit, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, pos--) } ) + 1;
+                    st_it = stmts.insert(st_it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpOpr, *rit } ) + 1;
                 }
             }
+
+            func.setParameters(params);
 
             for (auto& sym : globalSymbols) {
                 bool firstEncounter = true;
@@ -1064,7 +1071,20 @@ namespace Backend::Translator {
                         ops[1].setValue(static_cast<int>(stackScheme.allocate(ops[0], size)));
                     }
                         break;
-                    case IntermediateRepresentation::CALL:
+                    case IntermediateRepresentation::RETURN: {
+                        if (stmt.getDataType() != IntermediateRepresentation::t_void && ops[0].getIrOpType() == IntermediateRepresentation::Var) {
+                            /*
+                             * return       %<ret>
+                             *
+                             * mov          %<func>_ret_<ret>, %ret
+                             * return       %<func>_ret_<ret>
+                             * */
+                            auto tmpOps = ops[0];
+                            tmpOps.setVarName("ret_" + ops[0].getVarName());
+                            stmt.setOps( { tmpOps });
+                            it = stmts.insert(it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpOps, ops[0] }) + 1;
+                        }
+                    }
                     default:
                         break;
                 }
@@ -1121,11 +1141,19 @@ namespace Backend::Translator {
 
                     // generate alias
                     for (int i = 1 + 1; i <= paramCount + 1; i++) {
-                        auto tmpOpr = IntermediateRepresentation::IROperand(ops[i]);
-                        tmpOpr.setVarName(funcName + "_arg_" + ops[i].getVarName());
+                        auto tmpOpr = IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, "");
+                        if (ops[i].getIrOpType() == IntermediateRepresentation::Var)
+                            tmpOpr.setVarName(funcName + "_arg_" + ops[i].getVarName());
+                        else
+                            tmpOpr.setVarName(funcName + "_arg_imm_" + std::to_string(i));
                         replaceList.push_back(tmpOpr);
                         // mov      %<funcName>_arg_%x, %x
                         it = stmts.insert(it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpOpr, ops[i] } ) + 1;
+
+                        // prepare parameters
+                        // param    %<funcName>_arg_%x, -(x-4)
+                        if (i >= 6)
+                            it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, tmpOpr, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, -(i - 5)) }) + 1;
                     }
 
                     // insert placeholders
@@ -1141,11 +1169,6 @@ namespace Backend::Translator {
 
                     // replace function parameters
                     it->setOps(replaceList);
-
-                    // prepare parameters
-                    // param    %<funcName>_arg_%x, -(x-4)
-                    for (int i = 6; i < ops.size(); i++)
-                        it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, -(i - 4)) }) + 1;
 
                     // save return
                     // mov      %dest, %<funcName>_dst_%dest
@@ -1202,7 +1225,7 @@ namespace Backend::Translator {
                  * */
                 preProcFunc(func, stackLayout, globalMapping, globalSymbols);
 
-                std::cout << "After preprocessing: " << std::endl << func.toString();
+                std::cout << "After preprocessing: " << std::endl << func.toString() << std::endl;
 
                 allocator = std::make_unique<allocator_t>(allocator_t (stackLayout, func));
 
@@ -1210,7 +1233,14 @@ namespace Backend::Translator {
                 auto variables = allocator->getVariables();
                 auto totalColours = allocator->getTotalColours();
                 const std::vector<IntermediateRepresentation::Statement>& stmts = func.getStatements();
-                std::cerr << "Translator: Register assignment complete" << std::endl;
+
+                std::cout << "Translator: Register assignment complete" << std::endl;
+                std::cout << "After register assignment: " << std::endl << func.toString() << std::endl;
+
+                std::cout << "Allocation scheme: " << std::endl;
+                for (auto& alloc : allocation) {
+                    std::cout << "\t" << alloc.first.toString() << ": " << numToReg[alloc.second] << std::endl;
+                }
 
                 // mapping colours
 //                std::list<Operands::Register> remainRegisters;
@@ -1331,16 +1361,16 @@ namespace Backend::Translator {
                                         ins << MoveInstruction(mapping[ops[0]], numToReg[pos]);
                                 } else {
                                     // TODO calculate offset
-                                    ins << LoadInstruction(mapping[ops[0]], Operands::LoadSaveOperand(lr, 4 * pushSize + (pos - 5) * 4, true));
+                                    ins << LoadInstruction(mapping[ops[0]], Operands::LoadSaveOperand(fp, 4 * pushSize + (pos - 5) * 4, true));
                                 }
                             } else {
                                 /*
                                  * When pos is negative, it means PARAM is for caller
                                  * param    %param, -1
                                  *
-                                 * str      %param, [sp, #(-pos * 4)]
+                                 * str      %param, [sp, #((-pos - 1) * 4)]
                                  * */
-                                ins << SaveInstruction(mapping[ops[0]], Operands::LoadSaveOperand(sp, -pos * 4, true));
+                                ins << SaveInstruction(mapping[ops[0]], Operands::LoadSaveOperand(sp, (-pos - 1) * 4, true));
                             }
                         }
                             break;
