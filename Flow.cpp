@@ -35,7 +35,7 @@ namespace Backend::Flow {
                     currentBlock->appendStatement(ins);
             }
         }
-        if (currentBlock != nullptr)
+        if (currentBlock != nullptr && !currentBlock->getStatements().empty())
             newBB(currentBlock, false);
 
         // buildIntGraph CFG

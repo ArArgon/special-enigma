@@ -1230,7 +1230,7 @@ namespace Backend::Translator {
 
                 for (auto& var : variables)
                     if (allocation.count(var))
-                        mapping[var] = numToReg[allocation[var]];
+                        mapping[var] = numToReg[allocation.at(var)];
 
                 /*
                  * function init
@@ -1277,7 +1277,7 @@ namespace Backend::Translator {
                                  * breq     lb1
                                  * br       lb2
                                  * */
-                                ins << ComparisonInstruction(CMP, mapping[ops[0]], Operands::Operand2(imm8(1)));
+                                ins << ComparisonInstruction(CMP, mapping.at(ops[0]), Operands::Operand2(imm8(1)));
                                 auto breq = BranchInstruction(B, ops[0].getStrValue());
                                 breq.setCondition(Instruction::Condition::Cond_Equal);
                                 ins << std::move(breq);
@@ -1290,27 +1290,27 @@ namespace Backend::Translator {
                              * add i32 %dest, i32 %opr1, i32 %opr2
                              * */
 #warning "Imm12 not implemented"
-                            auto dest = mapping[ops[0]], opr1 = mapping[ops[1]];
+                            auto dest = mapping.at(ops[0]), opr1 = mapping.at(ops[1]);
                             if (ops[2].getIrOpType() == IntermediateRepresentation::Var)
-                                ins << AdditionInstruction(dest, opr1, mapping[ops[2]]);
+                                ins << AdditionInstruction(dest, opr1, mapping.at(ops[2]));
                             else
                                 ins << AdditionInstruction(dest, opr1, imm12(ops[2].getValue()));
                         }
                             break;
                         case IntermediateRepresentation::MUL: {
 #warning "Imm12 not implemented"
-                            auto dest = mapping[ops[0]], opr1 = mapping[ops[1]];
+                            auto dest = mapping.at(ops[0]), opr1 = mapping.at(ops[1]);
                             if (ops[2].getIrOpType() == IntermediateRepresentation::Var)
-                                ins << MultiplicationInstruction(dest, opr1, mapping[ops[2]]);
+                                ins << MultiplicationInstruction(dest, opr1, mapping.at(ops[2]));
                             else
                                 ins << MultiplicationInstruction(dest, opr1, imm12(ops[2].getValue()));
                         }
                             break;
                         case IntermediateRepresentation::SUB: {
 #warning "Imm12 not implemented"
-                            auto dest = mapping[ops[0]], opr1 = mapping[ops[1]];
+                            auto dest = mapping.at(ops[0]), opr1 = mapping.at(ops[1]);
                             if (ops[2].getIrOpType() == IntermediateRepresentation::Var)
-                                ins << SubtractionInstruction(dest, opr1, mapping[ops[2]]);
+                                ins << SubtractionInstruction(dest, opr1, mapping.at(ops[2]));
                             else
                                 ins << SubtractionInstruction(dest, opr1, imm12(ops[2].getValue()));
                         }

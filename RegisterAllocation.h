@@ -541,7 +541,6 @@ namespace Backend::RegisterAllocation {
 
             alias = Util::DisjointSet<var_t>(initial);
             initial = Util::set_diff(initial, preColoured);
-//            alias = Util::DisjointSet<var_t> { interferenceGraph.getNodes() };
 
             // calculate weight
             for (auto& block : basicBlocks) {
@@ -626,7 +625,7 @@ namespace Backend::RegisterAllocation {
             auto&& nodes = interferenceGraph.getNodes();
             baseType::variables = decltype(baseType::variables) { nodes.begin(), nodes.end() };
             for (const auto& var : baseType::variables)
-                baseType::allocation[var] = colour[alias.find(var)];
+                baseType::allocation[var] = colour.at(alias.find(var));
         }
 
         ~ColourAllocator() = default;

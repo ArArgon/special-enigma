@@ -73,6 +73,8 @@ namespace Backend::Util {
             if (!containsNode(b))
                 newNode(b);
             int id_a = nodeToId[a], id_b = nodeToId[b];
+            if (id_a == id_b)
+                return;
             adjSet.template emplace(a, b);
             degree[id_a]++;
             G[id_a].insert(id_b);
@@ -223,8 +225,11 @@ namespace Backend::Util {
     template<class Set>
     inline auto set_diff(const Set& a, const Set& b) {
         // return a - b;
-        Set ans;
-        std::set_difference(a.begin(), a.end(), b.begin(), b.end(), std::inserter(ans, ans.begin()));
+        Set ans = a;
+        for (auto& var : b)
+            if (ans.count(var))
+                ans.erase(var);
+        // std::set_difference(a.begin(), a.end(), b.begin(), b.end(), std::inserter(ans, ans.begin()));
         return ans;
     }
 
