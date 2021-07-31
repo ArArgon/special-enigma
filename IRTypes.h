@@ -65,9 +65,11 @@ namespace IntermediateRepresentation {
 
         CALL,       // function call
         /**
-         * call void <func>, <return_var>, par1, par2, par3, ...
+         * call (return_type) <return_var>, <func>, par1, par2, par3, ...
          *
-         * If 'func' returns void, 'return_var' will hold the place but be **ignored** by IRTranslator.
+         * If 'func' returns void, you must:
+         *      1. set call type to t_void
+         *      2. set return_var to void, t_void
          * */
 
 
