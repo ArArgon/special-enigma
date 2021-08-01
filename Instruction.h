@@ -209,12 +209,18 @@ namespace Instruction {
                     break;
                 case ZERO:
                     ins = ".zero";
+                    break;
             }
             std::string opr;
-            if (isStr)
-                opr = std::to_string(bValue);
+            if (isStr) {
+                opr = sValue;
+                if (dotType == ASCII || dotType == ASCIZ) {
+                    opr.insert(opr.begin(), '"');
+                    opr.insert(opr.end(), '"');
+                }
+            }
             else
-                opr = "\"" + sValue + "\"";
+                opr = std::to_string(bValue);
             return Utilities::ASMFormatter(ins, opr).toASM();
         }
     };

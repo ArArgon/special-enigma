@@ -18,10 +18,9 @@
 namespace Backend::Flow {
     class BasicBlock {
     public:
-        using var_ptr_t = std::shared_ptr<IntermediateRepresentation::IROperand>;
         using varSet = std::set<IntermediateRepresentation::IROperand>;
         struct BBStatement {
-            std::shared_ptr<IntermediateRepresentation::Statement> statement;
+            IntermediateRepresentation::Statement* statement;
             varSet def, use, live;
 
             void replaceUse(const IntermediateRepresentation::IROperand& oldVar, const IntermediateRepresentation::IROperand& newVar);
@@ -88,7 +87,7 @@ namespace Backend::Flow {
     using ControlFlowGraph = Util::Graph<bb_ptr_t>;
 
     class Flow {
-        std::shared_ptr<IntermediateRepresentation::Function> sourceFunc;
+        IntermediateRepresentation::Function* sourceFunc;
         std::vector<bb_ptr_t> basicBlocks;
         ControlFlowGraph cfg;
 
@@ -97,7 +96,7 @@ namespace Backend::Flow {
 
     public:
 
-        explicit Flow(std::shared_ptr<IntermediateRepresentation::Function> sourceFunc) : sourceFunc(std::move(sourceFunc)) {
+        explicit Flow(IntermediateRepresentation::Function* sourceFunc) : sourceFunc(std::move(sourceFunc)) {
             analyzeBasicBlocks();
             analyzeLiveness();
         }

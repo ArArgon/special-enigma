@@ -107,7 +107,7 @@ namespace Backend::Flow {
     BasicBlock::BBStatement BasicBlock::procRawStatement(
             IntermediateRepresentation::Statement &stmt) {
         BasicBlock::BBStatement ans;
-        ans.statement = std::shared_ptr<IntermediateRepresentation::Statement> (&stmt);
+        ans.statement = &stmt;
         auto& ops = stmt.getRefOps();
         // TODO process statement
         switch (stmt.getStmtType()) {
@@ -129,7 +129,6 @@ namespace Backend::Flow {
             case IntermediateRepresentation::AND:
             case IntermediateRepresentation::XOR:
             case IntermediateRepresentation::NOT:
-            case IntermediateRepresentation::PARAM:
             case IntermediateRepresentation::GLB_ARR:
             case IntermediateRepresentation::GLB_VAR:
             case IntermediateRepresentation::GLB_CONST:
@@ -158,6 +157,13 @@ namespace Backend::Flow {
                 for (int i = 2; i <= std::min(5, len - 1); i++) {
                     if (ops[i].getIrOpType() == IntermediateRepresentation::Var)
                         ans.use.insert(ops[i]);
+                }
+            }
+                break;
+            case IntermediateRepresentation::PARAM: {
+                for (auto& opr : ops) {
+                    if (opr.getIrOpType() == IntermediateRepresentation::Var)
+                        ans.def.insert(opr);
                 }
             }
                 break;
@@ -235,6 +241,10 @@ namespace Backend::Flow {
                     if (ops[i] == oldVar)
                         ops[i] = newVar;
             }
+                break;
+            case IntermediateRepresentation::GLB_VAR:
+            case IntermediateRepresentation::GLB_ARR:
+            case IntermediateRepresentation::GLB_CONST:
                 break;
             default:
                 throw std::runtime_error("Unable to replace def: " + std::to_string(statement->getStmtType()) + " has no use");

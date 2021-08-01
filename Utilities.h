@@ -22,6 +22,14 @@ public:
     }
 };
 
+template<>
+class std::hash<std::pair<IntermediateRepresentation::IROperand, IntermediateRepresentation::IROperand>> {
+public:
+    size_t operator() (const std::pair<IntermediateRepresentation::IROperand, IntermediateRepresentation::IROperand>& operand) const {
+        return std::hash<std::string> { }(operand.first.toString() + "#" + operand.second.toString());
+    }
+};
+
 namespace Backend::Util {
 
     template<class NodeType>

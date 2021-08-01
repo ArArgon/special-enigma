@@ -2,6 +2,7 @@
 #include "Instruction.h"
 #include "IRTypes.h"
 #include "IRTranslator.h"
+#include "RegisterAllocationRefactor.h"
 
 using Instruction::ARMv7_Register;
 using Instruction::BranchInstruction;
@@ -39,7 +40,7 @@ void testASM() {
 }
 
 void runner(const IntermediateRepresentation::IRProgram& irProgram) {
-    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocator, Backend::Translator::availableRegister>(irProgram);
+    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::AllStackAllocator, Backend::Translator::availableRegister>(irProgram);
     try {
         auto ins = translator.doTranslation();
         puts("");
@@ -55,11 +56,22 @@ void runner(const IntermediateRepresentation::IRProgram& irProgram) {
 void testCase1() {
     using namespace IntermediateRepresentation;
     IRProgram program;
+
     Function function("Test");
+
+    IRArray glb_arr("glb_arr_tst", 10);
+    glb_arr.addData(5, 0xafff);
 
     auto a = IROperand(i32, "a"), b = IROperand(i32, "b"),
          c = IROperand(i32, "c"), d = IROperand(i32, "d"),
-         e = IROperand(i32, "e"), f = IROperand(i32, "f");
+         e = IROperand(i32, "e"), f = IROperand(i32, "f"),
+         glb = IROperand(i32, "glb_tst"), glb_str = IROperand(str, "glb_str");
+
+    program.setGlobal( {
+        Statement { GLB_VAR, i32, glb },
+        Statement { GLB_VAR, str, glb_str, IROperand("Test text") }
+    } );
+    program.setGlobalArrays( { glb_arr } );
 
     auto genImm = [] (int imm) {
         return IROperand(i32, imm);
@@ -73,7 +85,7 @@ void testCase1() {
 //    function << Statement { SUB, i32, b, c, a };
 //    function << Statement { MOD, i32, d, a, b };
     function << Statement { CALL, i32, d, IROperand("Test2"), c, a, d, b, genImm(100), genImm(300) };
-    function << Statement { ADD, i32, d, e, f };
+    function << Statement { ADD, i32, d, e, glb };
     function << Statement { RETURN, i32, d };
 
     program.setFunctions( { function } );
@@ -87,6 +99,8 @@ int main() {
     IntermediateRepresentation::Function function("Test");
     IntermediateRepresentation::Statement statement(IntermediateRepresentation::ADD, IntermediateRepresentation::i32, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 32));
     using namespace IntermediateRepresentation;
+
+    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::AllStackAllocator, Backend::Translator::availableRegister>(irProgram);
 
     /*
      * mov      %a, 5

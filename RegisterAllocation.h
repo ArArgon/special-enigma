@@ -26,10 +26,10 @@ namespace Backend::RegisterAllocation {
     template<size_t registerCount>
     class RegisterAllocator {
     protected:
-        std::shared_ptr<IntermediateRepresentation::Function> sourceFunc;
+        IntermediateRepresentation::Function* sourceFunc;
         std::map<IntermediateRepresentation::IROperand, size_t> allocation;
         std::set<IntermediateRepresentation::IROperand> variables;
-        std::shared_ptr<Util::StackScheme> stackScheme;
+        Util::StackScheme* stackScheme;
         std::unordered_set<size_t> totalColours; // TODO
 
         size_t spilledCount = 0;
@@ -37,7 +37,7 @@ namespace Backend::RegisterAllocation {
         virtual void doFunctionScan() = 0;
     public:
 
-        explicit RegisterAllocator(Util::StackScheme &stack, std::shared_ptr<IntermediateRepresentation::Function> func) : stackScheme(&stack), sourceFunc(std::move(func)) { };
+        explicit RegisterAllocator(Util::StackScheme* stack, IntermediateRepresentation::Function* func) : stackScheme(std::move(stack)), sourceFunc(std::move(func)) { };
         RegisterAllocator() = default;
         virtual ~RegisterAllocator() = default;
 
@@ -45,7 +45,7 @@ namespace Backend::RegisterAllocation {
 
         const auto& getVariables() { return variables; }
 
-        const std::shared_ptr<Util::StackScheme> &getStackScheme() const { return stackScheme; }
+        const Util::StackScheme* getStackScheme() const { return stackScheme; }
 
         const std::unordered_set<size_t> &getTotalColours() const { return totalColours; }
     };
@@ -71,23 +71,33 @@ namespace Backend::RegisterAllocation {
         InterferenceGraph interferenceGraph;
         std::shared_ptr<Flow::Flow> flowAnalyzer = nullptr;
         std::unordered_map<var_t, std::unordered_set<is_t>> moveList;
-        std::unordered_map<var_t, size_t> colour; // TODO
+        std::unordered_map<var_t, size_t> colour;
         std::unordered_map<var_t, double> weight;
         std::unordered_set<is_t> workListMoves, activeMoves, frozenMoves, constrainedMoves, coalescedMoves;
-        std::unordered_set<var_t> spilledNodes, spillWorklist, coloredNodes, coalescedNodes, freezeWorklist, initial, preColoured, spillTemp;
+        std::unordered_set<var_t> spilledNodes, spillWorklist, colouredNodes, coalescedNodes, freezeWorklist, initial, preColoured, spillTemp;
         std::unordered_map<var_t, size_t> preColourScheme;
+        std::unordered_map<var_t, var_t> alias;
+        std::unordered_set<std::pair<var_t, var_t>> adjSet;
         std::list<var_t> simplifyWorklist;
         std::list<var_t> selectStack;
-        Util::DisjointSet<var_t> alias;
+
+        var_t getAlias(const var_t& n) {
+            if (coalescedNodes.count(n)) {
+                return alias[n] = getAlias(alias[n]);
+            }
+            return n;
+        }
 
         void addEdge(const var_t& u, const var_t& v) {
-            if (u != v && !interferenceGraph.containsEdge(u, v)) {
-                interferenceGraph.insertAdj(u, v);
-                interferenceGraph.insertAdj(v, u);
+            if (u != v && !adjSet.count({u, v})) {
+                adjSet.emplace(u, v);
+                adjSet.emplace(v, u);
                 if (!preColoured.count(u)) {
+                    std::cout << u.getVarName() << " <> " << v.getVarName() << std::endl;
                     interferenceGraph.addEdge(u, v);
                 }
                 if (!preColoured.count(v)) {
+                    std::cout << v.getVarName() << " <> " << u.getVarName() << std::endl;
                     interferenceGraph.addEdge(v, u);
                 }
             }
@@ -96,14 +106,18 @@ namespace Backend::RegisterAllocation {
         /*
          * Logic check: Pass
          * */
-        std::set<is_t> nodeMoves(const var_t& node) {
-            std::set<is_t> ans;
+        std::unordered_set<is_t> nodeMoves(const var_t& node) {
+            std::unordered_set<is_t> ans;
             auto& list = moveList[node];
             for (auto& move : list) {
-                if (!(activeMoves.count(move) + workListMoves.count(move)))
-                    ans.erase(move);
+                if (activeMoves.count(move) + workListMoves.count(move))
+                    ans.insert(move);
             }
             return ans;
+        }
+
+        bool moveRelated(const var_t& node) {
+            return !nodeMoves(node).empty();
         }
 
         std::unordered_set<var_t> adjacent(const var_t& node) {
@@ -143,7 +157,7 @@ namespace Backend::RegisterAllocation {
                 // EnableMoves
                 enableMoves(node);
                 spillWorklist.erase(node);
-                if (!moveList[node].empty())
+                if (moveRelated(node))
                     freezeWorklist.insert(node);
                 else
                     simplifyWorklist.push_back(node);
@@ -154,18 +168,19 @@ namespace Backend::RegisterAllocation {
          * Logic check: Pass
          * */
         void combine(const var_t& u, const var_t& v) {
+            std::cout << v.getVarName() << " >> " << u.getVarName() << std::endl;
             if (freezeWorklist.count(v))
                 freezeWorklist.erase(v);
             else
                 spillWorklist.erase(v);
             coalescedNodes.insert(v);
-            int ret = alias.disjoint(v, u);
+            alias[v] = u;
             /*
              * Could rewrite if depth is enabled
              * */
             Util::set_union_to(moveList[u], moveList[v]);
-            auto&& adj = adjacent(v);
-            for (auto& t : adj) {
+//            auto&& adj = adjacent(v);
+            for (auto& t : adjacent(v)) {
                 addEdge(t, u);
                 decrementDegree(t);
             }
@@ -185,9 +200,9 @@ namespace Backend::RegisterAllocation {
             auto conservative = [&] (const var_t& u, const var_t& v) {
                 int cnt = 0;
                 auto nodes = Util::set_union(adjacent(u), adjacent(v));
-                for (auto& n : nodes) {
-                    cnt += interferenceGraph.getNodeDegree(n) >= registerCount;
-                }
+                for (auto& n : nodes)
+                    if (interferenceGraph.getNodeDegree(n) >= registerCount)
+                        cnt++;
                 return cnt < registerCount;
             };
 
@@ -195,42 +210,51 @@ namespace Backend::RegisterAllocation {
              * Logic check: Pass
              * */
             auto isOk = [&] (const var_t& t, const var_t& r) {
-                return interferenceGraph.getNodeDegree(t) < registerCount || preColoured.count(t) || interferenceGraph.containsEdge(t, r);
+                return (interferenceGraph.getNodeDegree(t) < registerCount) || preColoured.count(t) || adjSet.count( {t, r});
+            };
+
+            auto isAllOk = [&] (const var_t& u, const var_t& v) {
+                for (auto& w : adjacent(v)) {
+                    if (!isOk(w, u))
+                        return false;
+                }
+                return true;
             };
 
             /*
              * Logic check: Pass
              * */
             auto addWorkList = [&] (const var_t& u) {
-                if (!preColoured.count(u) && nodeMoves(u).empty() && interferenceGraph.getNodeDegree(u) < registerCount) {
+                if (!preColoured.count(u) && !moveRelated(u) && interferenceGraph.getNodeDegree(u) < registerCount) {
                     freezeWorklist.erase(u);
                     simplifyWorklist.push_back(u);
                 }
             };
 
             auto m = *workListMoves.begin();
-            workListMoves.erase(workListMoves.begin());
-            auto x = alias.find(m->statement->getOps()[0]), y = alias.find(m->statement->getOps()[1]);
-            if (preColoured.count(y))
-                std::swap(x, y);
-            if (x == y) {
-                // mov x, y ?
-                coalescedMoves.insert(m);
-                addWorkList(x);
-            } else if (preColoured.count(y) || interferenceGraph.containsEdge(x, y)) {
-                constrainedMoves.insert(m);
-                addWorkList(x);
-                addWorkList(y);
+            workListMoves.erase(m);
+            auto x = getAlias(m->statement->getOps()[0]),
+                 y = getAlias(m->statement->getOps()[1]);
+            var_t u, v;
+            if (preColoured.count(y)) {
+                u = y;
+                v = x;
             } else {
-                bool ok = true;
-
-                for (auto& suc : adjacent(y))
-                    ok &= isOk(suc, x);
-
-                if ((ok && preColoured.count(x)) || (!preColoured.count(x) && conservative(x, y))) {
+                u = x;
+                v = y;
+            }
+            if (u == v) {
+                coalescedMoves.insert(m);
+                addWorkList(u);
+            } else if (preColoured.count(v) || adjSet.count({u, v})) {
+                constrainedMoves.insert(m);
+                addWorkList(u);
+                addWorkList(v);
+            } else {
+                if ((preColoured.count(u) && isAllOk(u, v)) || (!preColoured.count(u) && conservative(u, v))) {
                     coalescedMoves.insert(m);
-                    combine(x, y);
-                    addWorkList(x);
+                    combine(u, v);
+                    addWorkList(u);
                 } else
                     activeMoves.insert(m);
             }
@@ -241,7 +265,7 @@ namespace Backend::RegisterAllocation {
          * */
         void freeze() {
             auto u = *freezeWorklist.begin();
-            freezeWorklist.erase(freezeWorklist.begin());
+            freezeWorklist.erase(u);
             simplifyWorklist.push_back(u);
             freezeMoves(u);
         }
@@ -249,20 +273,17 @@ namespace Backend::RegisterAllocation {
         /*
          * Logic check: Pass
          * */
-        void freezeMoves(const var_t u) {
+        void freezeMoves(const var_t& u) {
             auto&& moves = nodeMoves(u);
             for (auto& m : moves) {
                 auto& ops = m->statement->getOps();
                 auto x = ops[0], y = ops[1];
-                if (alias.find(u) == alias.find(y))
-                    y = alias.find(x);
+                if (getAlias(u) == getAlias(y))
+                    y = getAlias(x);
                 else
-                    y = alias.find(y);
+                    y = getAlias(y);
 
-                if (activeMoves.count(m))
-                    activeMoves.erase(m);
-                else
-                    workListMoves.erase(m);
+                activeMoves.erase(m);
                 frozenMoves.insert(m);
                 if (nodeMoves(y).empty() && interferenceGraph.getNodeDegree(y) < registerCount) {
                     freezeWorklist.erase(y);
@@ -296,30 +317,29 @@ namespace Backend::RegisterAllocation {
                 auto n = *selectStack.rbegin();
                 selectStack.pop_back();
                 std::set<size_t> okColours;
+                std::unordered_set<var_t> coloured = colouredNodes;
+                Util::set_union_to(coloured, preColoured);
+
                 for (size_t i = 0; i < registerCount; i++)
                     okColours.insert(i);
 
                 auto&& neighbours = interferenceGraph.getNeighbours(n);
                 for (auto& w : neighbours) {
-                    auto&& fa = alias.find(w);
-                    if (colour.count(fa) || preColoured.count(fa))
-                        okColours.erase(colour[fa]);
+                    if (coloured.count(getAlias(w)))
+                        okColours.erase(colour[getAlias(w)]);
                 }
                 // No colours left
                 if (okColours.empty())
                     spilledNodes.insert(n);
                 else {
                     // colour this node
-                    coloredNodes.insert(n);
+                    colouredNodes.insert(n);
                     colour[n] = *okColours.begin();
                 }
             }
 
-            for (auto& node : coalescedNodes) {
-                auto fa = alias.find(node);
-                if (fa != node)
-                    colour[node] = colour[fa];
-            }
+            for (auto& node : coalescedNodes)
+                colour[node] = colour[getAlias(node)];
         }
 
         /*
@@ -329,7 +349,7 @@ namespace Backend::RegisterAllocation {
             for (auto& n : initial) {
                 if (interferenceGraph.getNodeDegree(n) >= registerCount) {
                     spillWorklist.insert(n);
-                } else if (moveList.count(n)) {
+                } else if (moveRelated(n)) {
                     freezeWorklist.insert(n);
                 } else {
                     simplifyWorklist.push_back(n);
@@ -345,7 +365,7 @@ namespace Backend::RegisterAllocation {
             /*
              * Select an ideal move from spillWorkList
              * */
-            double minCost = 1e10;
+            double minCost = 1e9;
             bool hasCandidate = false;
             auto opt = spillWorklist.begin();
             for (auto it = spillWorklist.begin(); it != spillWorklist.end(); it++) {
@@ -373,29 +393,29 @@ namespace Backend::RegisterAllocation {
          * Logic check: Pass
          * */
         void buildIntGraph() {
-            auto isMoveRelated = [&] (const Flow::BasicBlock::BBStatement* statement) {
+            auto isMoveIns = [&] (const Flow::BasicBlock::BBStatement* statement) {
                 return statement->statement->getStmtType() == IntermediateRepresentation::MOV
                         && statement->statement->getOps()[1].getIrOpType() == IntermediateRepresentation::Var;
             };
             for (auto& bb : basicBlocks) {
-                auto live = bb->liveOut;
+                auto curLive = bb->liveOut;
                 auto& statements = bb->statements;
                 for (auto it = statements.rbegin(); it != statements.rend(); it++) {
                     auto ins = is_t { &*it };
-                    if (isMoveRelated(ins)) {
-                        live = Util::set_diff(live, ins->use);
-                        auto moveRelated = ins->use;
-                        moveRelated.insert(ins->def.begin(), ins->def.end());
-                        for (auto& node : moveRelated)
+                    if (isMoveIns(ins)) {
+                        curLive = Util::set_diff(curLive, ins->use);
+                        auto moveRegisters = ins->use;
+                        moveRegisters.insert(ins->def.begin(), ins->def.end());
+                        for (auto& node : moveRegisters)
                             moveList[node].insert(ins);
                         workListMoves.insert(ins);
                     }
-                    Util::set_union_to(live, ins->def);
+                    Util::set_union_to(curLive, ins->def);
                     for (auto& def : ins->def)
-                        for (auto& liv : live)
-                            addEdge(liv, def);
+                        for (auto& reg : curLive)
+                            addEdge(reg, def);
 
-                    live = Util::set_union(ins->use, Util::set_diff(live, ins->def));
+                    curLive = Util::set_union(ins->use, Util::set_diff(curLive, ins->def));
                 }
             }
         }
@@ -406,12 +426,20 @@ namespace Backend::RegisterAllocation {
              * */
 
             auto isAllocated = [&] (const IntermediateRepresentation::IROperand& var) {
-                return baseType::stackScheme->isInStack(alias.find(var));
+                return baseType::stackScheme->isInStack(getAlias(var));
             };
 
             // assign stack space
             for (auto& node : spilledNodes) {
                 baseType::stackScheme->allocate(node);
+            }
+
+            for (auto& bb : basicBlocks) {
+                for (auto& ins : bb->statements) {
+                    if (ins.def.size() == 1) {
+                        getAlias(*ins.def.begin());
+                    }
+                }
             }
 
             for (auto& bb : basicBlocks) {
@@ -430,13 +458,13 @@ namespace Backend::RegisterAllocation {
                                 // stk_load     %xxx#<var>, %off
                                 Flow::BasicBlock::BBStatement tmpStmt;
                                 auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, useVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
-                                tmpStmt.statement = std::make_shared<decltype(load_st)>(load_st);
+                                tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                                 it = ins.insert(it, tmpStmt) + 1;
 
                                 // insert after
                                 // stk_str      %xxx#<var>, %off
                                 load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, useVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
-                                tmpStmt.statement = std::make_shared<decltype(load_st)>(load_st);
+                                tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                                 it = ins.insert(it + 1, tmpStmt) + 1;
 
                                 // replace usage
@@ -468,7 +496,7 @@ namespace Backend::RegisterAllocation {
                                     // stk_load     %tmp_xxx_<var>, %off
                                     Flow::BasicBlock::BBStatement tmpStmt;
                                     auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, useVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
-                                    tmpStmt.statement = std::make_shared<decltype(load_st)>(load_st);
+                                    tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
 
                                     it = ins.insert(it, tmpStmt) + 1;
                                     it->replaceUse(useVar, tmpVar);
@@ -499,7 +527,7 @@ namespace Backend::RegisterAllocation {
                                  * */
                                 Flow::BasicBlock::BBStatement tmpStmt;
                                 auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, defVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
-                                tmpStmt.statement = std::make_shared<decltype(load_st)>(load_st);
+                                tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                                 it = ins.insert(it + 1, tmpStmt) + 1;
 
                                 spillTemp.insert(defVar);
@@ -511,13 +539,32 @@ namespace Backend::RegisterAllocation {
             }
 
             spilledNodes.clear();
-            initial = coloredNodes;
+            initial = colouredNodes;
 
-            coloredNodes.clear();
+            colouredNodes.clear();
             coalescedNodes.clear();
         }
 
         void init() {
+            // structures
+            interferenceGraph = InterferenceGraph();
+            moveList.clear();
+            workListMoves.clear();
+            spilledNodes.clear();
+            freezeWorklist.clear();
+            spillWorklist.clear();
+            simplifyWorklist.clear();
+            coalescedNodes.clear();
+            colouredNodes.clear();
+            initial.clear();
+            selectStack.clear();
+            coalescedMoves.clear();
+            constrainedMoves.clear();
+            frozenMoves.clear();
+            activeMoves.clear();
+            adjSet.clear();
+            alias.clear();
+
             // flow analysis
             flowAnalyzer = std::make_shared<Flow::Flow>(Flow::Flow { baseType::sourceFunc });
             cfg = flowAnalyzer->getCfg();
@@ -534,23 +581,6 @@ namespace Backend::RegisterAllocation {
                 }
             }
 
-            // structures
-            interferenceGraph = InterferenceGraph();
-            moveList.clear();
-            workListMoves.clear();
-            spilledNodes.clear();
-            freezeWorklist.clear();
-            spillWorklist.clear();
-            simplifyWorklist.clear();
-            coalescedNodes.clear();
-            coloredNodes.clear();
-            initial.clear();
-            while(!selectStack.empty())
-                selectStack.pop_back();
-            coalescedMoves.clear();
-            constrainedMoves.clear();
-            frozenMoves.clear();
-            activeMoves.clear();
             // build initial & alias
 
             for (auto& block : basicBlocks) {
@@ -560,12 +590,13 @@ namespace Backend::RegisterAllocation {
                 }
             }
 
-            alias = Util::DisjointSet<var_t>(initial);
-
             for (auto& node : initial)
                 interferenceGraph.newNode(node);
 
             initial = Util::set_diff(initial, preColoured);
+
+            for (auto& node : preColoured)
+                interferenceGraph.setNodeDegree(node, 0x40000000);
 
             // calculate weight
             for (auto& block : basicBlocks) {
@@ -596,11 +627,11 @@ namespace Backend::RegisterAllocation {
                 do {
                     if (!simplifyWorklist.empty())
                         simplify();
-                    if (!workListMoves.empty())
+                    else if (!workListMoves.empty())
                         coalesce();
-                    if (!freezeWorklist.empty())
+                    else if (!freezeWorklist.empty())
                         freeze();
-                    if (!spillWorklist.empty())
+                    else if (!spillWorklist.empty())
                         selectSpill();
                 } while (!(
                         simplifyWorklist.empty() && workListMoves.empty() &&
@@ -615,8 +646,8 @@ namespace Backend::RegisterAllocation {
 
     public:
 
-        explicit ColourAllocator(Util::StackScheme &stack, IntermediateRepresentation::Function& func) :
-        baseType::RegisterAllocator(stack, decltype(baseType::sourceFunc) (&func)) {
+        ColourAllocator(Util::StackScheme* stack, IntermediateRepresentation::Function* func) :
+        baseType::RegisterAllocator(stack, func) {
             // load pre-colour
             //
             /*
@@ -625,8 +656,8 @@ namespace Backend::RegisterAllocation {
              * %dest is pre-coloured: r0
              * %1, %2, %3, %4 = r0, r1, r2, r3
              * */
-            auto& stmts = func.getStatements();
-            auto& params = func.getParameters();
+            auto& stmts = baseType::func->getStatements();
+            auto& params = baseType::func->getParameters();
 
             // function parameters
             for (int i = 0; i < std::min(4, (int) params.size()); i++) {
@@ -667,7 +698,7 @@ namespace Backend::RegisterAllocation {
             auto&& nodes = interferenceGraph.getNodes();
             baseType::variables = decltype(baseType::variables) { nodes.begin(), nodes.end() };
             for (const auto& var : baseType::variables)
-                baseType::allocation[var] = colour.at(alias.find(var));
+                baseType::allocation[var] = colour.at(getAlias(var));
         }
 
         ~ColourAllocator() = default;
