@@ -22,6 +22,7 @@ namespace Backend::Flow {
         struct BBStatement {
             IntermediateRepresentation::Statement* statement;
             varSet def, use, live;
+            bool init = false;
 
             void replaceUse(const IntermediateRepresentation::IROperand& oldVar, const IntermediateRepresentation::IROperand& newVar);
             void replaceDef(const IntermediateRepresentation::IROperand& oldVar, const IntermediateRepresentation::IROperand& newVar);

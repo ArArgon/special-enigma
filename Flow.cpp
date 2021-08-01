@@ -108,6 +108,7 @@ namespace Backend::Flow {
             IntermediateRepresentation::Statement &stmt) {
         BasicBlock::BBStatement ans;
         ans.statement = &stmt;
+        ans.init = true;
         auto& ops = stmt.getRefOps();
         // TODO process statement
         switch (stmt.getStmtType()) {

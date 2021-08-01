@@ -656,8 +656,8 @@ namespace Backend::RegisterAllocation {
              * %dest is pre-coloured: r0
              * %1, %2, %3, %4 = r0, r1, r2, r3
              * */
-            auto& stmts = baseType::func->getStatements();
-            auto& params = baseType::func->getParameters();
+            auto& stmts = baseType::sourceFunc->getStatements();
+            auto& params = baseType::sourceFunc->getParameters();
 
             // function parameters
             for (int i = 0; i < std::min(4, (int) params.size()); i++) {

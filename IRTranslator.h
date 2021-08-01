@@ -1157,6 +1157,33 @@ namespace Backend::Translator {
                     replaceList.push_back(replaceDest);
                     replaceList.push_back(ops[1]);
 
+                    std::vector<IntermediateRepresentation::IROperand> paramOpr;
+                    for (int i = 1 + 1; i <= paramCount + 1; i++) {
+                        // prepare parameters
+                        // param    [%<funcName>_arg_%x, -(x-4)]
+                        auto tmpOpr = IntermediateRepresentation::IROperand(IntermediateRepresentation::t_void, "");
+                        if (ops[i].getIrOpType() == IntermediateRepresentation::Var)
+                            tmpOpr.setVarName(funcName + "_arg_" + ops[i].getVarName());
+                        else
+                            tmpOpr.setVarName(funcName + "_arg_imm_" + std::to_string(i));
+                        if (i >= 6) {
+                            tmpOpr.setIrType(IntermediateRepresentation::i32);
+                            tmpOpr.setValue(-(i - 5));
+                        }
+                        paramOpr.push_back(tmpOpr);
+                    }
+                    // insert placeholders
+                    if (paramCount < 4) {
+                        for (int i = paramCount + 1; i <= 4; i++) {
+                            auto tmpOpr = IntermediateRepresentation::IROperand(IntermediateRepresentation::t_void, "");
+                            tmpOpr.setVarName(funcName + "_placeholder_" + std::to_string(i - 1));
+                            replaceList.push_back(tmpOpr);
+                            // param       [ %<func>_arg_placeholder_x, null ]
+                            paramOpr.push_back(tmpOpr);
+                        }
+                    }
+                    it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, paramOpr }) + 1;
+
                     // generate alias
                     for (int i = 1 + 1; i <= paramCount + 1; i++) {
                         auto tmpOpr = IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, "");
@@ -1167,24 +1194,6 @@ namespace Backend::Translator {
                         replaceList.push_back(tmpOpr);
                         // mov      %<funcName>_arg_%x, %x
                         it = stmts.insert(it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpOpr, ops[i] } ) + 1;
-
-                        // prepare parameters
-                        // param    [%<funcName>_arg_%x, -(x-4)]
-                        if (i >= 6) {
-                            tmpOpr.setValue(-(i - 5));
-                            it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, tmpOpr }) + 1;
-                        }
-                    }
-
-                    // insert placeholders
-                    if (paramCount < 4) {
-                        for (int i = paramCount + 1; i <= 4; i++) {
-                            auto tmpOpr = IntermediateRepresentation::IROperand(IntermediateRepresentation::t_void, "");
-                            tmpOpr.setVarName(funcName + "_placeholder_" + std::to_string(i - 1));
-                            replaceList.push_back(tmpOpr);
-                            // param        %<func>_arg_placeholder_x, null
-                            it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::t_void, tmpOpr, IntermediateRepresentation::IROperand() } ) + 1;
-                        }
                     }
 
                     // replace function parameters
@@ -1374,7 +1383,7 @@ namespace Backend::Translator {
                             // this is a placeholder
                             for (auto& opr : ops) {
                                 if (opr.getIrDataType() == IntermediateRepresentation::t_void)
-                                    break;
+                                    continue;
                                 int pos = opr.getValue();
                                 if (pos >= 0) {
                                     if (pos <= 3) {

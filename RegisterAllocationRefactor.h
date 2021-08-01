@@ -9,7 +9,7 @@
 
 namespace Backend::RegisterAllocation {
     template<size_t registerCount>
-    class AllStackAllocator : public RegisterAllocator<registerCount> {
+    class ColourAllocatorRewrite : public RegisterAllocator<registerCount> {
         struct VirtualReg {
             IntermediateRepresentation::IROperand operand;
             size_t colour, degree;
@@ -65,8 +65,10 @@ namespace Backend::RegisterAllocation {
         std::list<var_t> selectStack;
 
         var_t getVar(const IntermediateRepresentation::IROperand& var) {
-            if (!toVReg.count(var))
+            if (!toVReg.count(var)) {
                 toVReg[var] = new VirtualReg(var);
+                std::cerr << "New var: " << var.getVarName() << std::endl;
+            }
             return toVReg[var];
         }
 
@@ -105,11 +107,8 @@ namespace Backend::RegisterAllocation {
                     nodes.insert(ins.use.begin(), ins.use.end());
                 }
             }
-            for (auto& node : nodes) {
-                if (!toVReg.count(node))
-                    toVReg[node] = new VirtualReg { node };
-                initial.insert(toVReg[node]);
-            }
+            for (auto& node : nodes)
+                initial.insert(getVar(node));
 
             initial = Util::set_diff(initial, preColoured);
             std::for_each(initial.begin(),  initial.end(), [&] (const var_t& var) {
@@ -215,8 +214,8 @@ namespace Backend::RegisterAllocation {
                     }
                     Util::set_union_to(curLive, ins->def);
                     for (auto& def : ins->def)
-                        for (auto& reg : curLive)
-                            addEdge(toVReg[reg], toVReg[def]);
+                        for (auto& l : curLive)
+                            addEdge(getVar(l), getVar(def));
 
                     curLive = Util::set_union(ins->use, Util::set_diff(curLive, ins->def));
                 }
@@ -281,8 +280,8 @@ namespace Backend::RegisterAllocation {
         void coalesce() {
             auto move = *workListMoves.begin();
 
-            var_t x = getAlias(toVReg[move->statement->getOps()[0]]),
-                  y = getAlias(toVReg[move->statement->getOps()[1]]),
+            var_t x = getAlias(getVar(move->statement->getOps()[0])),
+                  y = getAlias(getVar(move->statement->getOps()[1])),
                   u, v;
             if (preColoured.count(y))
                 u = y, v = x;
@@ -422,7 +421,129 @@ namespace Backend::RegisterAllocation {
         }
 
         void rewriteFunction() {
+            std::cerr << "Rewrite function not implemented" << std::endl;
+            auto isAllocated = [&] (const IntermediateRepresentation::IROperand& var) {
+                return baseType::stackScheme->isInStack(getAlias(getVar(var))->operand);
+            };
 
+            // assign stack space
+            for (auto& node : spilledNodes) {
+                baseType::stackScheme->allocate(node->operand);
+            }
+
+            for (auto& bb : basicBlocks) {
+                for (auto& ins : bb->statements) {
+                    if (ins.def.size() == 1) {
+                        getAlias(getVar(*ins.def.begin()));
+                    }
+                }
+            }
+
+            for (auto& bb : basicBlocks) {
+                auto& ins = bb->statements;
+                for (auto it = ins.begin(); it != ins.end(); it++) {
+                    if (!it->init)
+                        continue;
+                    auto& ops = it->statement->getRefOps();
+                    auto stmtType = it->statement->getStmtType();
+                    auto afterIt = it;
+                    for (auto& useVar : it->use) {
+                        if (isAllocated(useVar)) {
+                            size_t offset = baseType::stackScheme->getVariablePosition(useVar);
+                            if (it->def.count(useVar)) {
+                                IntermediateRepresentation::IROperand tmpVar {
+                                    IntermediateRepresentation::i32, "tmp_" + std::to_string(baseType::spilledCount++) + "_" + useVar.getVarName()
+                                };
+                                // insert before
+                                // stk_load     %xxx#<var>, %off
+                                Flow::BasicBlock::BBStatement tmpStmt;
+                                auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, useVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                                tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
+                                it = ins.insert(it, tmpStmt) + 1;
+
+                                // insert after
+                                // stk_str      %xxx#<var>, %off
+                                load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, useVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                                tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
+                                afterIt = ins.insert(afterIt + 1, tmpStmt);
+
+                                // replace usage
+                                it->replaceUse(useVar, tmpVar);
+                                it->replaceDef(useVar, tmpVar);
+                                spillTemp.insert(getVar(tmpVar));
+                            } else {
+                                if (stmtType == IntermediateRepresentation::MOV && ops[0] == useVar && isAllocated(ops[1])) {
+                                    /*
+                                     * mov          %dest, %src     @ %src is allocated, and %dest is not.
+                                     *
+                                     * stk_load     %dest, %<src.off>
+                                     * */
+                                    it->statement->setStmtType(IntermediateRepresentation::STK_LOAD);
+                                    it->statement->setDataType(IntermediateRepresentation::i32);
+                                    ops[2] = IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset);
+                                } else {
+                                    /*
+                                     * opr          %arg1, %argX, ..., %argN
+                                     *
+                                     * stk_load     %tmp_<id>_argX, %off
+                                     * opr          %arg1, %tmp_<id>_argX, ...
+                                     * */
+                                    IntermediateRepresentation::IROperand tmpVar {
+                                        IntermediateRepresentation::i32, "tmp_" + std::to_string(baseType::spilledCount++) + "_" + useVar.getVarName()
+                                    };
+
+                                    // insert before
+                                    // stk_load     %tmp_xxx_<var>, %off
+                                    Flow::BasicBlock::BBStatement tmpStmt;
+                                    auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, useVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                                    tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
+                                    it = ins.insert(it, tmpStmt) + 1;
+
+                                    it->replaceUse(useVar, tmpVar);
+                                }
+                            }
+                        }
+                    }
+                    for (auto& defVar : it->def) {
+                        if (isAllocated(defVar)) {
+                            auto offset = baseType::stackScheme->getVariablePosition(defVar);
+                            if (stmtType == IntermediateRepresentation::MOV && !isAllocated(ops[1])) {
+                                /*
+                                 * mov      %dest, %src     @ %dest is allocated, and %src is not allocated or an imm.
+                                 *
+                                 * stk_str  %src, %off
+                                 * */
+                                it->statement->setDataType(IntermediateRepresentation::i32);
+                                it->statement->setStmtType(IntermediateRepresentation::STK_STR);
+                                it->statement->setOps({ ops[1], IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset) });
+                            } else {
+                                IntermediateRepresentation::IROperand tmpVar {
+                                    IntermediateRepresentation::i32, "tmp_" + std::to_string(baseType::spilledCount++) + "_" + defVar.getVarName()
+                                };
+
+                                // insert after
+                                /*
+                                 * stk_str      %dest,  %off
+                                 * */
+                                Flow::BasicBlock::BBStatement tmpStmt;
+                                auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, defVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                                tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
+                                afterIt = ins.insert(afterIt + 1, tmpStmt);
+
+                                spillTemp.insert(getVar(defVar));
+                                it->replaceDef(defVar, tmpVar);
+                            }
+                        }
+                    }
+                    it = afterIt;
+                }
+            }
+
+            spilledNodes.clear();
+            initial = colouredNodes;
+
+            colouredNodes.clear();
+            coalescedNodes.clear();
         }
 
         void loadPrecolour() {
@@ -477,7 +598,7 @@ namespace Backend::RegisterAllocation {
 
     public:
 
-        AllStackAllocator(Util::StackScheme* stack, IntermediateRepresentation::Function* func)  :
+        ColourAllocatorRewrite(Util::StackScheme* stack, IntermediateRepresentation::Function* func)  :
         baseType::RegisterAllocator(stack, func) {
             loadPrecolour();
 
@@ -491,13 +612,14 @@ namespace Backend::RegisterAllocation {
 //                std::cout << "\t" << node.first.toString() << ": " << node.second << std::endl;
 
             doFunctionScan();
+            std::cerr << "toVReg Count: " << toVReg.size() << std::endl << "";
             for (auto var : toVReg) {
                 baseType::variables.insert(var.first);
                 baseType::allocation[var.first] = var.second->colour;
             }
         }
 
-        ~AllStackAllocator() = default;
+        ~ColourAllocatorRewrite() = default;
     };
 }
 
