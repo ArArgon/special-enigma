@@ -7,3 +7,6 @@ This repository is private temporarily.
 
 Laguage: C++17
 Dependencies: CMake, Clang (or any compiler supporting C++17)
+
+make
+./a filename.c
