@@ -423,7 +423,7 @@ namespace IntermediateRepresentation {
             ans += "Parameters: {\n" + [&] () {
                 std::string ret = "\t";
                 for (auto& param : parameters)
-                    ret += "[" + param.toString() + "], ";
+                    ret += "[" + std::string(param.getIsPointer() ? "*" : "") + param.toString() + "], ";
                 return ret;
             } () + "\n}\n";
             ans += "Statements: {\n" + [&] () {
