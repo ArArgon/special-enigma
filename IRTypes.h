@@ -19,7 +19,7 @@ namespace IntermediateRepresentation {
 
     enum IRDataType {
         i32,   // types of integers
-        str, t_void, label = t_void
+        str, t_void, label = str
     };
 
     typedef IRDataType IRType;
