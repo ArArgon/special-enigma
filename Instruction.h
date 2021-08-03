@@ -10,7 +10,7 @@
 #include <array>
 #include <memory>
 #include <string>
-#include <ostream>
+#include <sstream>
 
 #include "InstructionOperands.h"
 #include "InstructionUtilities.h"
@@ -694,6 +694,15 @@ namespace Instruction {
 
         LoadInstruction(Operands::Register targetReg, Operands::Label label) : label(std::move(label)), destIsLabel(true) {
             LoadSaveProto::target = std::move(targetReg);
+        }
+
+        LoadInstruction(Operands::Register targetReg, uint32_t immVal) {
+            destIsLabel = true;
+            LoadSaveProto::target = std::move(targetReg);
+            std::stringstream ss;
+            ss << std::hex << immVal;
+            label = "=0x" + ss.str();
+            bitSize = bit_DEF;
         }
 
         std::string protoName() const override {

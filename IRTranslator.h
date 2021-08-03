@@ -395,7 +395,7 @@ namespace Backend::Translator {
 
     public:
         Translator() = default;
-        ~Translator() = default;
+        ~Translator() override = default;
         explicit Translator(IntermediateRepresentation::IRProgram irProgram) : TranslatorBase(std::move(irProgram)) { }
 
         Instruction::InstructionStream doTranslation() override {
@@ -404,12 +404,15 @@ namespace Backend::Translator {
             auto functions = irProgram.getFunctions();
             std::unordered_map<std::string, std::string> globalMapping;
             std::unordered_set<IntermediateRepresentation::IROperand> globalSymbols;
+
+            auto immNeedProc = [&] (int imm, int targetImm) {
+                // TODO: judge if imm is too big
+                return false;
+            };
+
             auto loadImm = [&] (int imm) {
-                int pos = imm < 0 ? ~imm : imm;
-                ins << MoveInstruction(r9, imm16(0xffff & pos), false, Instruction::MoveInstruction::LOW)
-                    << MoveInstruction(r9, imm16(pos >> 16), false, Instruction::MoveInstruction::HIGH);
-                if (imm < 0)
-                    ins << MoveInverseInstruction(r9, r9);
+                ins << LoadInstruction(r9, imm);
+                return r9;
             };
 
             // globalIns
@@ -520,30 +523,45 @@ namespace Backend::Translator {
                             /*
                              * add i32 %dest, i32 %opr1, i32 %opr2
                              * */
-#warning "Imm12 not implemented"
+//#warning "Imm12 not implemented"
                             auto dest = mapping.at(ops[0]), opr1 = mapping.at(ops[1]);
                             if (ops[2].getIrOpType() == IntermediateRepresentation::Var)
                                 ins << AdditionInstruction(dest, opr1, mapping.at(ops[2]));
-                            else
-                                ins << AdditionInstruction(dest, opr1, imm12(ops[2].getValue()));
+                            else {
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 12))
+                                    ins << AdditionInstruction(dest, opr1, Operands::Operand2(loadImm(imm)));
+                                else
+                                    ins << AdditionInstruction(dest, opr1, imm12(imm));
+                            }
                         }
                             break;
                         case IntermediateRepresentation::MUL: {
-#warning "Imm12 not implemented"
+//#warning "Imm12 not implemented"
                             auto dest = mapping.at(ops[0]), opr1 = mapping.at(ops[1]);
                             if (ops[2].getIrOpType() == IntermediateRepresentation::Var)
                                 ins << MultiplicationInstruction(dest, opr1, mapping.at(ops[2]));
-                            else
-                                ins << MultiplicationInstruction(dest, opr1, imm12(ops[2].getValue()));
+                            else {
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 12))
+                                    ins << MultiplicationInstruction(dest, opr1, Operands::Operand2(loadImm(imm)));
+                                else
+                                    ins << MultiplicationInstruction(dest, opr1, imm12(imm));
+                            }
                         }
                             break;
                         case IntermediateRepresentation::SUB: {
-#warning "Imm12 not implemented"
+//#warning "Imm12 not implemented"
                             auto dest = mapping.at(ops[0]), opr1 = mapping.at(ops[1]);
                             if (ops[2].getIrOpType() == IntermediateRepresentation::Var)
                                 ins << SubtractionInstruction(dest, opr1, mapping.at(ops[2]));
-                            else
-                                ins << SubtractionInstruction(dest, opr1, imm12(ops[2].getValue()));
+                            else {
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 12))
+                                    ins << SubtractionInstruction(dest, opr1, Operands::Operand2(loadImm(imm)));
+                                else
+                                    ins << SubtractionInstruction(dest, opr1, imm12(imm));
+                            }
                         }
                             break;
                         case IntermediateRepresentation::MOD:
@@ -564,6 +582,7 @@ namespace Backend::Translator {
                                             ins << MoveInstruction(mapping.at(opr), numToReg[pos]);
                                     } else {
                                         // TODO calculate offset
+#warning "Imm not implemented"
                                         ins << LoadInstruction(mapping.at(opr), Operands::LoadSaveOperand(fp, 4 * pushSize + (pos - 5) * 4, true));
                                     }
                                 } else {
@@ -573,6 +592,7 @@ namespace Backend::Translator {
                                      *
                                      * str      %param, [sp, #((-pos - 1) * 4)]
                                      * */
+#warning "Imm not implemented"
                                     ins << SaveInstruction(mapping.at(opr), Operands::LoadSaveOperand(sp, (-pos - 1) * 4, true));
                                 }
                             }
@@ -594,15 +614,21 @@ namespace Backend::Translator {
                         case IntermediateRepresentation::RETURN: {
                             // mov      r0, ?
                             if (func.getReturnType() != IntermediateRepresentation::t_void) {
-                                if (ops[0].getIrOpType() == IntermediateRepresentation::Var)
+                                if (ops[0].getIrOpType() == IntermediateRepresentation::Var) {
                                     if (mapping.at(ops[0]) != r0)
                                         ins << MoveInstruction(r0, mapping.at(ops[0]));
-                                else {
-#warning "Imm16 is not implemented"
-                                    ins << MoveInstruction(r0, imm16(ops[0].getValue()));
+                                } else {
+//#warning "Imm16 is not implemented"
+                                    int imm = ops[0].getValue();
+                                    if (immNeedProc(imm, 16))
+                                        ins << MoveInstruction(r0, Operands::Operand2(loadImm(imm)));
+                                    else
+                                        ins << MoveInstruction(r0, imm16(imm));
+//                                    ins << MoveInstruction(r0, imm16(ops[0].getValue()));
                                 }
                             }
 
+                            // Epilogue
                             // add      sp, sp #stack_size
                             for (size_t remainStackSize = stackSize; remainStackSize; ) {
                                 int sub = (int) std::min(remainStackSize, (size_t) 4095);
@@ -618,7 +644,14 @@ namespace Backend::Translator {
                         case IntermediateRepresentation::MOV: {
                             // mov      %dest, %source
                             if (ops[1].getIrOpType() == IntermediateRepresentation::ImmVal) {
-                                ins << MoveInstruction(mapping.at(ops[0]), imm16(ops[1].getValue()));
+                                // ldr      %dest, =<value>
+                                // or
+                                // mov      %dest, #<value>
+                                int imm = ops[1].getValue();
+                                if (immNeedProc(imm, 16))
+                                    ins << LoadInstruction(mapping.at(ops[0]), imm);
+                                else
+                                    ins << MoveInstruction(mapping.at(ops[0]), imm16(imm));
                             } else {
                                 if (mapping.at(ops[0]) != mapping.at(ops[1]))
                                     ins << MoveInstruction(mapping.at(ops[0]), mapping.at(ops[1]));
@@ -636,8 +669,14 @@ namespace Backend::Translator {
                              * mov          %dest, #offset
                              * add          %dest, %dest, %sp
                              * */
-#warning "Imm16 not implemented"
-                            ins << MoveInstruction(mapping.at(ops[0]), imm16(stackSize - ops[1].getValue()));
+//#warning "Imm16 not implemented"
+                            int imm = stackSize - ops[1].getValue();
+                            if (immNeedProc(imm, 16))
+                                ins << MoveInstruction(mapping.at(ops[0]), loadImm(imm));
+                            else
+                                ins << MoveInstruction(mapping.at(ops[0]), imm16(imm));
+
+//                            ins << MoveInstruction(mapping.at(ops[0]), imm16(stackSize - ops[1].getValue()));
                             ins << AdditionInstruction(mapping.at(ops[0]), mapping.at(ops[0]), sp);
                         }
                             break;
@@ -647,6 +686,7 @@ namespace Backend::Translator {
                              *
                              * ldr          %dest, [lr, #off]
                              * */
+#warning "Imm not implemented"
                             ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, ops[1].getValue(),
                                                                                               true));
                         }
@@ -657,11 +697,12 @@ namespace Backend::Translator {
                              *
                              * str          %src, [lr, #off]
                              * */
+#warning "Imm not implemented"
                             if (ops.size() == 2)
                                 ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, ops[1].getValue(),true));
                             else {
                                 // that's for function
-
+                                // TODO: function stk_str
                             }
                         }
                             break;
@@ -671,6 +712,7 @@ namespace Backend::Translator {
                              *
                              * ldr          %dest, [%base, #off]
                              * */
+#warning "Imm not implemented"
                             ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), ops[2].getValue(), true));
                         }
                             break;
@@ -680,6 +722,7 @@ namespace Backend::Translator {
                              *
                              * str          %source, [%base, #off]
                              * */
+#warning "Imm not implemented"
                             ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), ops[2].getValue(), true));
                         }
                             break;
@@ -690,78 +733,108 @@ namespace Backend::Translator {
                              * cmp          %opr1, %opr2
                              * moveq        %dest, #1
                              * */
-#warning "Imm8 is not implemented"
+//#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
-                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 8))
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
+                                else
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
+//                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
                             } else {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
-#warning "Imm16 is not implemented"
+//#warning "Imm16 is not implemented"
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_Equal);
                             ins << std::move(moveq);
                         }
                             break;
                         case IntermediateRepresentation::CMP_NE: {
-#warning "Imm8 is not implemented"
+//#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
-                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 8))
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
+                                else
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
+//                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
                             } else {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
-#warning "Imm16 is not implemented"
+//#warning "Imm16 is not implemented"
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_NotEqual);
                             ins << std::move(moveq);
                         }
                             break;
                         case IntermediateRepresentation::CMP_SGE: {
-#warning "Imm8 is not implemented"
+//#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
-                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 8))
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
+                                else
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
+//                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
                             } else {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
-#warning "Imm16 is not implemented"
+//#warning "Imm16 is not implemented"
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_SGreaterEqual);
                             ins << std::move(moveq);
                         }
                             break;
                         case IntermediateRepresentation::CMP_SLE: {
-#warning "Imm8 is not implemented"
+//#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
-                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 8))
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
+                                else
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
+//                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
                             } else {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
-#warning "Imm16 is not implemented"
+//#warning "Imm16 is not implemented"
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_SLessEqual);
                             ins << std::move(moveq);
                         }
                             break;
                         case IntermediateRepresentation::CMP_SGT: {
-#warning "Imm8 is not implemented"
+//#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
-                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 8))
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
+                                else
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
+//                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
                             } else {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
-#warning "Imm16 is not implemented"
+//#warning "Imm16 is not implemented"
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_SGreater);
                             ins << std::move(moveq);
                         }
                             break;
                         case IntermediateRepresentation::CMP_SLT: {
-#warning "Imm8 is not implemented"
+//#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
-                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 8))
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
+                                else
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
+//                                ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(ops[2].getValue())));
                             } else {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
-#warning "Imm16 is not implemented"
+//#warning "Imm16 is not implemented"
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_SLess);
                             ins << std::move(moveq);
@@ -784,16 +857,28 @@ namespace Backend::Translator {
                              *
                              * lsl      %dest, %src, %num
                              * */
-                            if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal)
-                                ins << ShiftInstruction(LSL, mapping.at(ops[0]), mapping.at(ops[1]), ops[2].getValue());
-                            else
+//#warning "Imm not implemented"
+                            if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 8))
+                                    ins << ShiftInstruction(LSL, mapping.at(ops[0]), mapping.at(ops[1]), loadImm(imm));
+                                else
+                                    ins << ShiftInstruction(LSL, mapping.at(ops[0]), mapping.at(ops[1]), imm);
+//                                ins << ShiftInstruction(LSL, mapping.at(ops[0]), mapping.at(ops[1]), ops[2].getValue());
+                            } else
                                 ins << ShiftInstruction(LSL, mapping.at(ops[0]), mapping.at(ops[1]), mapping.at(ops[2]));
                         }
                             break;
                         case IntermediateRepresentation::RSH: {
-                            if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal)
-                                ins << ShiftInstruction(LSR, mapping.at(ops[0]), mapping.at(ops[1]), ops[2].getValue());
-                            else
+//#warning "Imm not implemented"
+                            if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 8))
+                                    ins << ShiftInstruction(LSR, mapping.at(ops[0]), mapping.at(ops[1]), loadImm(imm));
+                                else
+                                    ins << ShiftInstruction(LSR, mapping.at(ops[0]), mapping.at(ops[1]), imm);
+//                                ins << ShiftInstruction(LSR, mapping.at(ops[0]), mapping.at(ops[1]), ops[2].getValue());
+                            } else
                                 ins << ShiftInstruction(LSR, mapping.at(ops[0]), mapping.at(ops[1]), mapping.at(ops[2]));
                         }
                             break;
@@ -803,27 +888,42 @@ namespace Backend::Translator {
                              *
                              * orr      %dest, %opr1, %opr2
                              * */
-#warning "Imm8 not implemented"
+//#warning "Imm8 not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
-                                ins << BitInstruction(ORR, mapping.at(ops[0]), mapping.at(ops[1]), imm8(ops[2].getValue()));
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 8))
+                                    ins << BitInstruction(ORR, mapping.at(ops[0]), mapping.at(ops[1]), loadImm(imm));
+                                else
+                                    ins << BitInstruction(ORR, mapping.at(ops[0]), mapping.at(ops[1]), imm8(imm));
+//                                ins << BitInstruction(ORR, mapping.at(ops[0]), mapping.at(ops[1]), imm8(ops[2].getValue()));
                             } else {
                                 ins << BitInstruction(ORR, mapping.at(ops[0]), mapping.at(ops[1]), mapping.at(ops[2]));
                             }
                         }
                             break;
                         case IntermediateRepresentation::AND: {
-#warning "Imm8 not implemented"
+//#warning "Imm8 not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
-                                ins << BitInstruction(AND, mapping.at(ops[0]), mapping.at(ops[1]), imm8(ops[2].getValue()));
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 8))
+                                    ins << BitInstruction(AND, mapping.at(ops[0]), mapping.at(ops[1]), loadImm(imm));
+                                else
+                                    ins << BitInstruction(AND, mapping.at(ops[0]), mapping.at(ops[1]), imm8(imm));
+//                                ins << BitInstruction(AND, mapping.at(ops[0]), mapping.at(ops[1]), imm8(ops[2].getValue()));
                             } else {
                                 ins << BitInstruction(AND, mapping.at(ops[0]), mapping.at(ops[1]), mapping.at(ops[2]));
                             }
                         }
                             break;
                         case IntermediateRepresentation::XOR: {
-#warning "Imm8 not implemented"
+//#warning "Imm8 not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
-                                ins << BitInstruction(EOR, mapping.at(ops[0]), mapping.at(ops[1]), imm8(ops[2].getValue()));
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, 8))
+                                    ins << BitInstruction(EOR, mapping.at(ops[0]), mapping.at(ops[1]), loadImm(imm));
+                                else
+                                    ins << BitInstruction(EOR, mapping.at(ops[0]), mapping.at(ops[1]), imm8(imm));
+//                                ins << BitInstruction(EOR, mapping.at(ops[0]), mapping.at(ops[1]), imm8(ops[2].getValue()));
                             } else {
                                 ins << BitInstruction(EOR, mapping.at(ops[0]), mapping.at(ops[1]), mapping.at(ops[2]));
                             }
