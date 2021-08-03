@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 
 #include "ast.h"
 #include "genIR.h"
@@ -7,25 +8,85 @@
 #include "RegisterAllocation.h"
 #include "RegisterAllocationRefactor.h"
 
-void runner(const IntermediateRepresentation::IRProgram& irProgram) {
+bool isDebug;
+
+void runner(const IntermediateRepresentation::IRProgram& irProgram, std::ostream& os) {
     auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocatorRewrite, Backend::Translator::availableRegister>(irProgram);
+    if (!os.good()) {
+        std::cerr << "Fatal error: output stream is not prepared." << std::endl;
+        exit(-1);
+    }
     try {
         auto ins = translator.doTranslation();
-        puts("");
-        puts("[ASM]");
         for (const auto& var : ins)
-            std::cout << *var << std::endl;
+            os << *var << std::endl;
     } catch (const std::runtime_error& e) {
-        std::cerr << "Fatal error: " << e.what() << std::endl;
+        os << "Fatal error: " << e.what() << std::endl;
         exit(-1);
     }
 }
 
+bool doesFileExist(const std::string& filePath) {
+    std::ifstream fs { filePath };
+    bool ans = false;
+    if (fs.is_open() && fs.good())
+        ans = true;
+    fs.close();
+    return ans;
+}
+
 int main(int argc, char *argv[]) {
+    std::vector<std::string> args { argv + 1, argv + argc };
 
-    AST *ast = parseAST(argv[1]);
+    std::string asmOut, sourceIn;
+    int optLevel = 0;
+    bool outputASM = false;
+    for (auto it = args.begin(); it != args.end(); it++) {
+        if ((*it)[0] == '-') {
+            if (*it == "-O2")
+                optLevel = 2;
+            if (*it == "-o")
+                asmOut = *++it;
+            if (*it == "-S")
+                outputASM = true;
+            if (*it == "-debug")
+                isDebug = true;
+        } else
+            sourceIn = *it;
+    }
 
-    showast(ast, 1);
+    if (sourceIn.empty()) {
+        std::cerr << "Fatal error: source file must be specified." << std::endl;
+        exit(-1);
+    }
+
+    if (!outputASM) {
+        std::cerr << "Fatal error: '-S' must present in the arguments." << std::endl;
+        exit(-1);
+    }
+
+    if (asmOut.empty() && !isDebug) {
+        std::cerr << "Fatal error: assembly output path must be specified." << std::endl;
+        exit(-1);
+    }
+
+    if (!doesFileExist(sourceIn)) {
+        std::cerr << "Fatal error: \"" << sourceIn << "\": no such file." << std::endl;
+        exit(-1);
+    }
+
+    std::fstream asmOutFs;
+    asmOutFs.open(asmOut, std::fstream::out);
+
+    if ((!asmOutFs.is_open() || asmOutFs.bad()) && !isDebug) {
+        std::cerr << "Fatal error: unable to open file \"" << asmOut << "\"" << std::endl;
+        exit(-1);
+    }
+
+    AST *ast = parseAST(sourceIn.c_str());
+
+    if (isDebug)
+        showast(ast, 1);
     
     IntermediateRepresentation::IRProgram *programIR = genIR(ast);
     deleteAST(ast);
@@ -33,12 +94,16 @@ int main(int argc, char *argv[]) {
     //SSA
     //programIR = genSSA(programIR);
 
-    std::cout << programIR->toString() << std::endl;
+    if (isDebug)
+        std::cout << programIR->toString() << std::endl;
     
     //消除phi函数
     //programIR = eliminatePhi(programIR);
 
     //backend runner
-    runner(*programIR);
+    if (isDebug && !asmOutFs.is_open())
+        runner(*programIR, std::cout);
+    else
+        runner(*programIR, asmOutFs);
     return 0;
 }

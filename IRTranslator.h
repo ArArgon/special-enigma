@@ -19,6 +19,8 @@
 #include "RegisterAllocation.h"
 #include "InstructionUtilities.h"
 
+extern bool isDebug;
+
 namespace Backend::Translator {
     // Base class for translator
     using namespace Instruction::Utilities;
@@ -429,7 +431,8 @@ namespace Backend::Translator {
                  * */
                 preProcFunc(func, stackLayout, globalMapping, globalSymbols);
 
-                std::cout << "After preprocessing: " << std::endl << func.toString() << std::endl;
+                if (isDebug)
+                    std::cout << "After preprocessing: " << std::endl << func.toString() << std::endl;
 
                 allocator = std::make_unique<allocator_t>(allocator_t (&stackLayout, &func));
 
@@ -438,12 +441,13 @@ namespace Backend::Translator {
                 auto totalColours = allocator->getTotalColours();
                 const std::vector<IntermediateRepresentation::Statement>& stmts = func.getStatements();
 
-                std::cout << "Translator: Register assignment complete" << std::endl;
-                std::cout << "After register assignment: " << std::endl << func.toString() << std::endl;
+                if (isDebug) {
+                    std::cout << "Translator: Register assignment complete" << std::endl;
+                    std::cout << "After register assignment: " << std::endl << func.toString() << std::endl;
 
-                std::cout << "Allocation scheme: " << std::endl;
-                for (auto& alloc : allocation) {
-                    std::cout << "\t" << alloc.first.toString() << ": " << numToReg[alloc.second] << std::endl;
+                    std::cout << "Allocation scheme: " << std::endl;
+                    for (auto& alloc : allocation)
+                        std::cout << "\t" << alloc.first.toString() << ": " << numToReg[alloc.second] << std::endl;
                 }
 
                 // mapping colours

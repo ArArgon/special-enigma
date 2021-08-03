@@ -7,6 +7,8 @@
 
 #include "RegisterAllocation.h"
 
+extern bool isDebug;
+
 namespace Backend::RegisterAllocation {
     template<size_t registerCount>
     class ColourAllocatorRewrite : public RegisterAllocator<registerCount> {
@@ -67,7 +69,8 @@ namespace Backend::RegisterAllocation {
         var_t getVar(const IntermediateRepresentation::IROperand& var) {
             if (!toVReg.count(var)) {
                 toVReg[var] = new VirtualReg(var);
-                std::cerr << "New var: " << var.getVarName() << std::endl;
+                if (isDebug)
+                    std::cerr << "New var: " << var.getVarName() << std::endl;
             }
             return toVReg[var];
         }
@@ -89,16 +92,19 @@ namespace Backend::RegisterAllocation {
 
             adjSet.clear();
 
-            for (auto& bb : basicBlocks) {
-                std::cout << "Statement: " << std::endl;
-                int i = 0;
-                for (auto& ins : bb->statements) {
-                    std::cout << ++i << "\t\tlive: ";
-                    for (auto& liv : ins.live)
-                        std::cout << "[" << liv.toString() <<"], ";
-                    std::cout << std::endl;
+            if (isDebug) {
+                for (auto& bb : basicBlocks) {
+                    std::cout << "Statement: " << std::endl;
+                    int i = 0;
+                    for (auto& ins : bb->statements) {
+                        std::cout << ++i << "\t\tlive: ";
+                        for (auto& liv : ins.live)
+                            std::cout << "[" << liv.toString() <<"], ";
+                        std::cout << std::endl;
+                    }
                 }
             }
+
 
             std::set<IntermediateRepresentation::IROperand> nodes;
             for (auto& block : basicBlocks) {
@@ -121,7 +127,8 @@ namespace Backend::RegisterAllocation {
 
         void addEdge(const var_t& u, const var_t& v) {
             if (u != v && !adjSet.count({ u, v })) {
-                std::cout << u->operand.getVarName() << " <> " << v->operand.getVarName() << std::endl;
+                if (isDebug)
+                    std::cout << u->operand.getVarName() << " <> " << v->operand.getVarName() << std::endl;
                 adjSet.emplace(u, v);
                 adjSet.emplace(v, u);
                 if (!preColoured.count(u)) {
@@ -262,7 +269,8 @@ namespace Backend::RegisterAllocation {
             else
                 spillWorklist.erase(v);
             coalescedNodes.insert(v);
-            std::cout << v->operand.getVarName() << " >> " << u->operand.getVarName() << std::endl;
+            if (isDebug)
+                std::cout << v->operand.getVarName() << " >> " << u->operand.getVarName() << std::endl;
             v->alias = u;
             Util::set_union_to(u->moveList, v->moveList);
 //            std::set<var_t> tmp { v };
@@ -372,7 +380,8 @@ namespace Backend::RegisterAllocation {
                 }
                 if (okColours.empty()) {
                     spilledNodes.insert(node);
-                    std::cout << "Spilling: " << node->operand.getVarName() << std::endl;
+                    if (isDebug)
+                        std::cout << "Spilling: " << node->operand.getVarName() << std::endl;
                 }
                 else {
                     colouredNodes.insert(node);
@@ -421,7 +430,8 @@ namespace Backend::RegisterAllocation {
         }
 
         void rewriteFunction() {
-            std::cerr << "Rewrite function not implemented" << std::endl;
+            if (isDebug)
+                std::cerr << "Rewrite function not implemented" << std::endl;
             auto isAllocated = [&] (const IntermediateRepresentation::IROperand& var) {
                 return baseType::stackScheme->isInStack(getAlias(getVar(var))->operand);
             };
@@ -612,7 +622,8 @@ namespace Backend::RegisterAllocation {
 //                std::cout << "\t" << node.first.toString() << ": " << node.second << std::endl;
 
             doFunctionScan();
-            std::cerr << "toVReg Count: " << toVReg.size() << std::endl << "";
+            if (isDebug)
+                std::cerr << "toVReg Count: " << toVReg.size() << std::endl << "";
             for (auto var : toVReg) {
                 baseType::variables.insert(var.first);
                 baseType::allocation[var.first] = var.second->colour;

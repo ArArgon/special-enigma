@@ -20,6 +20,8 @@
 #include "Flow.h"
 #include "InstructionOperands.h"
 
+extern bool isDebug;
+
 namespace Backend::RegisterAllocation {
     // A virtual class for register allocation algorithms
 
@@ -102,11 +104,13 @@ namespace Backend::RegisterAllocation {
                 adjSet.emplace(u, v);
                 adjSet.emplace(v, u);
                 if (!preColoured.count(u)) {
-                    std::cout << u.getVarName() << " <> " << v.getVarName() << std::endl;
+                    if (isDebug)
+                        std::cout << u.getVarName() << " <> " << v.getVarName() << std::endl;
                     interferenceGraph.addEdge(u, v);
                 }
                 if (!preColoured.count(v)) {
-                    std::cout << v.getVarName() << " <> " << u.getVarName() << std::endl;
+                    if (isDebug)
+                        std::cout << v.getVarName() << " <> " << u.getVarName() << std::endl;
                     interferenceGraph.addEdge(v, u);
                 }
             }
@@ -177,7 +181,8 @@ namespace Backend::RegisterAllocation {
          * Logic check: Pass
          * */
         void combine(const var_t& u, const var_t& v) {
-            std::cout << v.getVarName() << " >> " << u.getVarName() << std::endl;
+            if (isDebug)
+                std::cout << v.getVarName() << " >> " << u.getVarName() << std::endl;
             if (freezeWorklist.count(v))
                 freezeWorklist.erase(v);
             else
@@ -579,14 +584,16 @@ namespace Backend::RegisterAllocation {
             cfg = flowAnalyzer->getCfg();
             basicBlocks = flowAnalyzer->getBasicBlocks();
 
-            for (auto& bb : basicBlocks) {
-                std::cout << "Statement: " << std::endl;
-                int i = 0;
-                for (auto& ins : bb->statements) {
-                    std::cout << ++i << "\t\tlive: ";
-                    for (auto& liv : ins.live)
-                        std::cout << "[" << liv.toString() <<"], ";
-                    std::cout << std::endl;
+            if (isDebug) {
+                for (auto& bb : basicBlocks) {
+                    std::cout << "Statement: " << std::endl;
+                    int i = 0;
+                    for (auto& ins : bb->statements) {
+                        std::cout << ++i << "\t\tlive: ";
+                        for (auto& liv : ins.live)
+                            std::cout << "[" << liv.toString() <<"], ";
+                        std::cout << std::endl;
+                    }
                 }
             }
 
@@ -700,9 +707,12 @@ namespace Backend::RegisterAllocation {
             }
 
             // finish precolouring
-            std::cout << "Pre-colour scheme: " << std::endl;
-            for (auto& node : preColourScheme)
-                std::cout << "\t" << node.first.toString() << ": " << node.second << std::endl;
+            if (isDebug) {
+                std::cout << "Pre-colour scheme: " << std::endl;
+                for (auto& node : preColourScheme)
+                    std::cout << "\t" << node.first.toString() << ": " << node.second << std::endl;
+            }
+
 
             doFunctionScan();
             saveFunction();
