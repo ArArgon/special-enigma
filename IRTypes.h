@@ -593,4 +593,8 @@ namespace IntermediateRepresentation {
     };
 }
 
+<<<<<<< HEAD
 #endif //SYSYBACKEND_IRTYPES_H
+=======
+#endif //SYSYBACKEND_IRTYPES_H
+>>>>>>> origin/front
