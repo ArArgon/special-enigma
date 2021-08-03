@@ -65,7 +65,6 @@ namespace Backend::RegisterAllocation {
         using var_t = IntermediateRepresentation::IROperand;
         using InterferenceGraph = Util::Graph<var_t>;
 
-//        std::shared_ptr<IntermediateRepresentation::Function> func;
         std::vector<bb_t> basicBlocks;
         Flow::ControlFlowGraph cfg;
         InterferenceGraph interferenceGraph;
@@ -80,6 +79,16 @@ namespace Backend::RegisterAllocation {
         std::unordered_set<std::pair<var_t, var_t>> adjSet;
         std::list<var_t> simplifyWorklist;
         std::list<var_t> selectStack;
+
+        void saveFunction() {
+            std::vector<IntermediateRepresentation::Statement> stmts;
+            for (auto &bb : basicBlocks) {
+                for (auto &ins : bb->statements) {
+                    stmts.push_back(*ins.statement);
+                }
+            }
+            baseType::sourceFunc->setStatements(stmts);
+        }
 
         var_t getAlias(const var_t& n) {
             if (coalescedNodes.count(n)) {
@@ -690,11 +699,13 @@ namespace Backend::RegisterAllocation {
                 }
             }
 
+            // finish precolouring
             std::cout << "Pre-colour scheme: " << std::endl;
             for (auto& node : preColourScheme)
                 std::cout << "\t" << node.first.toString() << ": " << node.second << std::endl;
 
             doFunctionScan();
+            saveFunction();
             auto&& nodes = interferenceGraph.getNodes();
             baseType::variables = decltype(baseType::variables) { nodes.begin(), nodes.end() };
             for (const auto& var : baseType::variables)

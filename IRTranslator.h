@@ -990,10 +990,11 @@ namespace Backend::Translator {
                     auto param = *rit;
                     param.setValue(pos--);
                     paramTmp.push_back(param);
-//                    st_it = stmts.insert(st_it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, *rit, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, pos--) } ) + 1;
                     st_it = stmts.insert(st_it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpOpr, *rit } ) + 1;
                 }
+
                 stmts.insert(stmts.begin(), { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, paramTmp } );
+
             }
 
             func.setParameters(params);
@@ -1178,11 +1179,22 @@ namespace Backend::Translator {
                             auto tmpOpr = IntermediateRepresentation::IROperand(IntermediateRepresentation::t_void, "");
                             tmpOpr.setVarName(funcName + "_placeholder_" + std::to_string(i - 1));
                             replaceList.push_back(tmpOpr);
-                            // param       [ %<func>_arg_placeholder_x, null ]
+                            // param        [ %<func>_arg_placeholder_x, null ]
                             paramOpr.push_back(tmpOpr);
                         }
                     }
                     it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, paramOpr }) + 1;
+
+                    if (paramCount > 4) {
+                        for (int i = 6; i <= paramCount + 1; i++) {
+                            // insert before
+                            // stk_str      %replaceList[i], #paramOpr[i].getValue()
+                            it = stmts.insert(it, {
+                                IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, replaceList[i],
+                                IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, paramOpr[i].getValue())
+                            }) + 1;
+                        }
+                    }
 
                     // generate alias
                     for (int i = 1 + 1; i <= paramCount + 1; i++) {
@@ -1296,8 +1308,8 @@ namespace Backend::Translator {
                  * */
                 // <funcName>:
                 ins << LabelInstruction(func.getFunName());
-                // push { rx, rx, ..., fp, lr, sp }
-                list.emplaceRegister(fp, lr, sp);
+                // push { rx, rx, ..., fp, lr }
+                list.emplaceRegister(fp, lr);
                 ins << PushInstruction(list);
                 pushSize = list.getRegList().size();
                 // mov fp, sp
@@ -1381,6 +1393,7 @@ namespace Backend::Translator {
                             break;
                         case IntermediateRepresentation::PARAM: {
                             // this is a placeholder
+                            break;
                             for (auto& opr : ops) {
                                 if (opr.getIrDataType() == IntermediateRepresentation::t_void)
                                     continue;
@@ -1436,10 +1449,12 @@ namespace Backend::Translator {
                                 ins << AdditionInstruction(sp, sp, imm12(sub));
                                 remainStackSize -= sub;
                             }
-                            // pop      { rx, rx, ..., fp, lr, sp }
+                            // pop      { rx, rx, ..., fp, lr }
                             ins << PopInstruction(list);
                             // bx       lr
-                            ins << BranchInstruction(BX, lr);
+//                            ins << BranchInstruction(BX, lr);
+                            // mov      pc, lr
+                            ins << MoveInstruction(pc, lr);
                         }
                             break;
                         case IntermediateRepresentation::MOV: {
@@ -1484,8 +1499,12 @@ namespace Backend::Translator {
                              *
                              * str          %src, [lr, #off]
                              * */
-                            ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, ops[1].getValue(),
-                                                                                              true));
+                            if (ops.size() == 2)
+                                ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, ops[1].getValue(),true));
+                            else {
+                                // that's for function
+
+                            }
                         }
                             break;
                         case IntermediateRepresentation::LOAD: {
