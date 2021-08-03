@@ -6,7 +6,7 @@
 
 namespace Instruction::Utilities {
 
-    bool ASMFormatter::usingTab = true;
+    bool ASMFormatter::usingTab = false;
 
     bool isTooLong(int32_t val)  {
         uint32_t u_val = reinterpret_cast<int32_t>(val);
