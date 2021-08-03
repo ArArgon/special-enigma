@@ -6,6 +6,7 @@
 #define SYSYBACKEND_IRREGISTERALLOCATION_H
 
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <set>
 #include <vector>
