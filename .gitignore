@@ -1,3 +1,6 @@
 /cmake-buildIntGraph-debug/
 /.idea/
 /.vs/
+/lex.yy.cpp
+/lrparser.tab.hpp
+/lrparser.tab.cpp
