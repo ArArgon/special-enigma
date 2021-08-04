@@ -417,6 +417,9 @@ namespace Backend::Translator {
                 return r9;
             };
 
+            ins << DotInstruction(Instruction::DotInstruction::TEXT, "");
+            ins << DotInstruction(Instruction::DotInstruction::GLOBL, "main");
+
             // globalIns
             procGlobal(ins, globalMapping, globalSymbols);
 

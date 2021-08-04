@@ -132,7 +132,7 @@ namespace Instruction {
     class DotInstruction : public MachineInstruction {
     public:
         enum DotType {
-            BYTE, BYTE_2, BYTE_4, BYTE_8, ASCII, ASCIZ, LONG, WORD, ZERO
+            BYTE, BYTE_2, BYTE_4, BYTE_8, ASCII, ASCIZ, LONG, WORD, ZERO, GLOBL, TEXT
         };
     private:
         DotType dotType;
@@ -209,6 +209,12 @@ namespace Instruction {
                     break;
                 case ZERO:
                     ins = ".zero";
+                    break;
+                case GLOBL:
+                    ins = ".globl";
+                    break;
+                case TEXT:
+                    ins = ".text";
                     break;
             }
             std::string opr;
