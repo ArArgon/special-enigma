@@ -584,15 +584,25 @@ namespace Backend::Translator {
                             break;
                         case IntermediateRepresentation::SUB: {
 //#warning "Imm12 not implemented"
-                            auto dest = mapping.at(ops[0]), opr1 = mapping.at(ops[1]);
-                            if (ops[2].getIrOpType() == IntermediateRepresentation::Var)
-                                ins << SubtractionInstruction(dest, opr1, mapping.at(ops[2]));
-                            else {
-                                int imm = ops[2].getValue();
-                                if (immNeedProc(imm, 12))
-                                    ins << SubtractionInstruction(dest, opr1, Operands::Operand2(loadImm(imm)));
-                                else
-                                    ins << SubtractionInstruction(dest, opr1, imm12(imm));
+                            if (ops[1].getIrOpType() == IntermediateRepresentation::ImmVal) {
+                                auto dest = mapping.at(ops[0]), opr2 = mapping.at(ops[2]);
+                                if (ops[2].getIrOpType() == IntermediateRepresentation::Var) {
+                                    ins << SubtractionInstruction(dest, loadImm(ops[1].getValue()), opr2);
+                                } else {
+                                    int imm = ops[1].getValue() - ops[2].getValue();
+                                    ins << LoadInstruction(dest, imm);
+                                }
+                            } else {
+                                auto dest = mapping.at(ops[0]), opr1 = mapping.at(ops[1]);
+                                if (ops[2].getIrOpType() == IntermediateRepresentation::Var)
+                                    ins << SubtractionInstruction(dest, opr1, mapping.at(ops[2]));
+                                else {
+                                    int imm = ops[2].getValue();
+                                    if (immNeedProc(imm, 12))
+                                        ins << SubtractionInstruction(dest, opr1, Operands::Operand2(loadImm(imm)));
+                                    else
+                                        ins << SubtractionInstruction(dest, opr1, imm12(imm));
+                                }
                             }
                         }
                             break;
@@ -778,11 +788,21 @@ namespace Backend::Translator {
                              * str          %source, [%base, #off]
                              * */
 //#warning "Imm not implemented"
-                            int imm = ops[2].getValue();
-                            if (immNeedProc(imm, -12))
-                                ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(imm), true));
-                            else
-                                ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), imm, true));
+                            if (ops[0].getIrOpType() == IntermediateRepresentation::Var) {
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, -12))
+                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(imm), true));
+                                else
+                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), imm, true));
+                            } else {
+                                int immOff = ops[2].getValue();
+                                ins << LoadInstruction(r8, ops[0].getValue());
+                                if (immNeedProc(immOff, -12))
+                                    ins << SaveInstruction(r8, Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(immOff), true));
+                                else
+                                    ins << SaveInstruction(r8, Operands::LoadSaveOperand(mapping.at(ops[1]), immOff, true));
+
+                            }
                         }
                             break;
                         case IntermediateRepresentation::CMP_EQ: {
@@ -1005,10 +1025,11 @@ namespace Backend::Translator {
             }
 
             // insert data segment
-
-            ins << DotInstruction(Instruction::DotInstruction::DATA, "");
-            ins.insert(ins.end(), dataIns.begin(),  dataIns.end());
-            ins << DotInstruction(Instruction::DotInstruction::END, "");
+            if (!dataIns.empty()) {
+                ins << DotInstruction(Instruction::DotInstruction::DATA, "");
+                ins.insert(ins.end(), dataIns.begin(),  dataIns.end());
+                ins << DotInstruction(Instruction::DotInstruction::END, "");
+            }
             return ins;
         }
     };

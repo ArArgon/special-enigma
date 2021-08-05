@@ -708,12 +708,10 @@ namespace Instruction {
             LoadSaveProto::target = std::move(targetReg);
         }
 
-        LoadInstruction(Operands::Register targetReg, uint32_t immVal) {
+        LoadInstruction(Operands::Register targetReg, int immVal) {
             destIsLabel = true;
             LoadSaveProto::target = std::move(targetReg);
-            std::stringstream ss;
-            ss << std::hex << immVal;
-            label = "=0x" + ss.str();
+            label = "=" + std::to_string(immVal);
             bitSize = bit_DEF;
         }
 
