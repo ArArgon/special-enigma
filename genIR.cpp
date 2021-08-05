@@ -124,6 +124,8 @@ void pri_var(AST* a, std::string type, bool isconst, bool isglobal)
             //add to sym tab
             symbalTableMember symTabM;
             symTabM.init(name, name, symbalTableMember::INT, 0);
+            symTabM.initialized = 1;
+            symTabM.value.push_back(value);
             symTab->addGlobalVar(symTabM);
         }
         else
@@ -148,7 +150,6 @@ void pri_var(AST* a, std::string type, bool isconst, bool isglobal)
             AST* temp = a->left;
             std::string name = temp->content;
             temp = a->right;
-
             IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, name);
             IntermediateRepresentation::IROperand my_ops1 = pri_exp(temp);
             IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, my_ops0, my_ops1);
@@ -200,8 +201,37 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             {
                 temp = arr_list_stack.top()->right;
                 arr_list_stack.pop();
-                arrayIndex.push_back(temp->value);
-                arrSize *= temp->value;
+                if(temp->name == "CONSTANT")
+                {
+                    arrayIndex.push_back(temp->value);
+                    arrSize *= temp->value;
+                }
+                else if(temp->name == "IDENTIFIER")
+                {
+                    int i = symTab->findInGlobal(temp->content);
+                    symbalTableMember symTabTemp = symTab->getGlobalVar(i);
+                    int temp_value = symTabTemp.value.back();
+                    //std:: cout << "temp_value :" << temp_value << std::endl;
+                    arrayIndex.push_back(temp_value);
+                    arrSize *= temp_value;
+                }
+                else
+                {
+                    IntermediateRepresentation::IROperand ops_Imm = pri_exp(temp);
+                    if(ops_Imm.getIrOpType() == IntermediateRepresentation::ImmVal)
+                    {
+                        int temp_value = ops_Imm.getValue();
+                        arrayIndex.push_back(temp_value);
+                        arrSize *= temp_value;
+
+                    }
+                    else
+                    {
+                        std::cout << "error at global array index type" << std::endl;
+                        exit(-1);
+                    }
+                    
+                }
             }
             arrSize *= 4;
 
@@ -257,8 +287,36 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             {
                 temp = arr_list_stack.top()->right;
                 arr_list_stack.pop();
-                arrayIndex.push_back(temp->value);
-                arrSize *= temp->value;
+                if(temp->name == "CONSTANT")
+                {
+                    arrayIndex.push_back(temp->value);
+                    arrSize *= temp->value;
+                }
+                else if(temp->name == "IDENTIFIER")
+                {
+                    int i = symTab->findInGlobal(temp->content);
+                    symbalTableMember symTabTemp = symTab->getGlobalVar(i);
+                    int temp_value = symTabTemp.value.back();
+                    //std:: cout << "temp_value :" << temp_value << std::endl;
+                    arrayIndex.push_back(temp_value);
+                    arrSize *= temp_value;
+                }
+                else
+                {
+                    IntermediateRepresentation::IROperand ops_Imm = pri_exp(temp);
+                    if(ops_Imm.getIrOpType() == IntermediateRepresentation::ImmVal)
+                    {
+                        int temp_value = ops_Imm.getValue();
+                        arrayIndex.push_back(temp_value);
+                        arrSize *= temp_value;
+
+                    }
+                    else
+                    {
+                        std::cout << "error at global array index type" << std::endl;
+                        exit(-1);
+                    }
+                }
             }
             arrSize *= 4;
             
@@ -297,9 +355,27 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             {
                 temp = arr_list_stack.top()->right;
                 arr_list_stack.pop();
-                arrayIndex.push_back(temp->value);
-                onesize = temp->value;
-                arrSize *= onesize;
+                if(temp->name == "CONSTANT")
+                {
+                    arrayIndex.push_back(temp->value);
+                    onesize = temp->value;
+                    arrSize *= onesize;
+                }
+                else
+                {
+                    IntermediateRepresentation::IROperand ops_Imm = pri_exp(temp);
+                    if(ops_Imm.getIrOpType() == IntermediateRepresentation::ImmVal)
+                    {
+                        int temp_value = ops_Imm.getValue();
+                        arrayIndex.push_back(temp_value);
+                        arrSize *= temp_value;
+                    }
+                    else
+                    {
+                        std::cout << "error at local array index type" << std::endl;
+                        exit(-1);
+                    }
+                }
             }
             arrSize *= 4;
 
@@ -373,13 +449,13 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                         else
                         {
                             std::cout << "error at RVal arr init" << std::endl;
+                            exit(-1);
                         }
                     }
                     else
                     {
                         index += onesize;
                     }
-                    
                 }
             }
         }
@@ -406,8 +482,26 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             {
                 temp = arr_list_stack.top()->right;
                 arr_list_stack.pop();
-                arrayIndex.push_back(temp->value);
-                arrSize *= temp->value;
+                if(temp->name == "CONSTANT")
+                {
+                    arrayIndex.push_back(temp->value);
+                    arrSize *= temp->value;
+                }
+                else
+                {
+                    IntermediateRepresentation::IROperand ops_Imm = pri_exp(temp);
+                    if(ops_Imm.getIrOpType() == IntermediateRepresentation::ImmVal)
+                    {
+                        int temp_value = ops_Imm.getValue();
+                        arrayIndex.push_back(temp_value);
+                        arrSize *= temp_value;
+                    }
+                    else
+                    {
+                        std::cout << "error at local array index type" << std::endl;
+                        exit(-1);
+                    }
+                }
             }
             arrSize *= 4;
 
@@ -613,6 +707,7 @@ void trans_block(AST* a)
             else
             {
                 std::cout<< "error in blockitem_list" << std::endl;
+                exit(-1);
             }
         }
     }
@@ -639,6 +734,7 @@ void pri_exp_statement(AST* a)
         else
         {
             std::cout << "error at LVal" << std::endl;
+            exit(-1);
         }
     }
     else if(temp->name == "func_postfix_expression")
@@ -648,6 +744,7 @@ void pri_exp_statement(AST* a)
     else
     {
         std::cout << "error expression_statement" << std::endl;
+        exit(-1);
     }
 }
 
@@ -675,64 +772,7 @@ void pri_if(AST* a)
     AST* temp = a->right;
     if(temp)
     {
-        if(temp->name == "blockitem_list")
-        {
-            trans_block(temp);
-
-        }
-        else if(temp->name == "expression_statement")
-        {
-            pri_exp_statement(temp);
-        }
-        else if(temp->name == "if_statement")
-        {
-            if(temp->right->name == "ELSE")
-            {
-                pri_if_else(temp);
-            }
-            else
-            {
-                pri_if(temp);
-            }
-        }
-        else if(temp->name == "while_statement")
-        {
-            pri_while(temp);
-        }
-        else if(temp->name == "CONTINUE")
-        {
-            IntermediateRepresentation::IROperand ops_lab_cond(whileLables.top().cond);
-            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_cond);
-            my_function->insertStatement(tempVar);
-
-        }
-        else if(temp->name == "BREAK")
-        {
-            IntermediateRepresentation::IROperand ops_lab_after(whileLables.top().after);
-            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_after);
-            my_function->insertStatement(tempVar);
-
-        }
-        else if(temp->name == "RETURN") //return i32, no return ptr
-        {
-            temp = temp->right;
-            if(temp)
-            {
-                IntermediateRepresentation::IROperand ops_re = pri_exp(temp);
-                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::RETURN, IntermediateRepresentation::i32, ops_re);
-                my_function->insertStatement(tempVar);
-            }
-            else
-            {
-                IntermediateRepresentation::IROperand ops_re;
-                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::RETURN, IntermediateRepresentation::t_void, ops_re);
-                my_function->insertStatement(tempVar);
-            }
-        }
-        else
-        {
-            std::cout<< "error in statement" << std::endl;
-        }
+        pri_single_statement_block(temp);
     }
     //do end
     IntermediateRepresentation::Statement tempVar5(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_after);
@@ -768,63 +808,7 @@ void pri_if_else(AST* a)
     //do something
     if(temp)
     {
-        if(temp->name == "blockitem_list")
-        {
-            trans_block(temp);
-        }
-        else if(temp->name == "expression_statement")
-        {
-            pri_exp_statement(temp);
-        }
-        else if(temp->name == "if_statement")
-        {
-            if(temp->right->name == "ELSE")
-            {
-                pri_if_else(temp);
-            }
-            else
-            {
-                pri_if(temp);
-            }
-        }
-        else if(temp->name == "while_statement")
-        {
-            pri_while(temp);
-        }
-        else if(temp->name == "CONTINUE")
-        {
-            IntermediateRepresentation::IROperand ops_lab_cond(whileLables.top().cond);
-            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_cond);
-            my_function->insertStatement(tempVar);
-
-        }
-        else if(temp->name == "BREAK")
-        {
-            IntermediateRepresentation::IROperand ops_lab_after(whileLables.top().after);
-            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_after);
-            my_function->insertStatement(tempVar);
-
-        }
-        else if(temp->name == "RETURN") //return i32, no return ptr
-        {
-            temp = temp->right;
-            if(temp)
-            {
-                IntermediateRepresentation::IROperand ops_re = pri_exp(temp);
-                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::RETURN, IntermediateRepresentation::i32, ops_re);
-                my_function->insertStatement(tempVar);
-            }
-            else
-            {
-                IntermediateRepresentation::IROperand ops_re;
-                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::RETURN, IntermediateRepresentation::t_void, ops_re);
-                my_function->insertStatement(tempVar);
-            }
-        }
-        else
-        {
-            std::cout<< "error in statement" << std::endl;
-        }
+        pri_single_statement_block(temp);
     }
     //do end
     IntermediateRepresentation::Statement tempVar5(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_after);
@@ -836,14 +820,7 @@ void pri_if_else(AST* a)
     //do something
     if(temp)
     {
-        if(temp->name == "blockitem_list")
-        {
-            trans_block(temp);
-        }
-        else if(temp->name == "expression_statement")
-        {
-            pri_exp_statement(temp);
-        }
+        pri_single_statement_block(temp);
     }
     //do end
     IntermediateRepresentation::Statement tempVar7(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_after);
@@ -880,64 +857,7 @@ void pri_while(AST *a)
     AST* temp = a->right;
     if(temp)
     {
-        if(temp->name == "blockitem_list")
-        {
-            trans_block(temp);
-
-        }
-        else if(temp->name == "expression_statement")
-        {
-            pri_exp_statement(temp);
-        }
-        else if(temp->name == "if_statement")
-        {
-            if(temp->right->name == "ELSE")
-            {
-                pri_if_else(temp);
-            }
-            else
-            {
-                pri_if(temp);
-            }
-        }
-        else if(temp->name == "while_statement")
-        {
-            pri_while(temp);
-        }
-        else if(temp->name == "CONTINUE")
-        {
-            IntermediateRepresentation::IROperand ops_lab_cond(whileLables.top().cond);
-            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_cond);
-            my_function->insertStatement(tempVar);
-
-        }
-        else if(temp->name == "BREAK")
-        {
-            IntermediateRepresentation::IROperand ops_lab_after(whileLables.top().after);
-            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_after);
-            my_function->insertStatement(tempVar);
-
-        }
-        else if(temp->name == "RETURN") //return i32, no return ptr
-        {
-            temp = temp->right;
-            if(temp)
-            {
-                IntermediateRepresentation::IROperand ops_re = pri_exp(temp);
-                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::RETURN, IntermediateRepresentation::i32, ops_re);
-                my_function->insertStatement(tempVar);
-            }
-            else
-            {
-                IntermediateRepresentation::IROperand ops_re;
-                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::RETURN, IntermediateRepresentation::t_void, ops_re);
-                my_function->insertStatement(tempVar);
-            }
-        }
-        else
-        {
-            std::cout<< "error in statement" << std::endl;
-        }
+        pri_single_statement_block(temp);
     }
     //do end
     IntermediateRepresentation::Statement tempVar5(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_cond);
@@ -948,6 +868,70 @@ void pri_while(AST *a)
 
     whileLables.pop();
 
+}
+
+void pri_single_statement_block(AST* a)
+{
+    AST* temp = a;
+    if(temp->name == "blockitem_list")
+    {
+        trans_block(temp);
+
+    }
+    else if(temp->name == "expression_statement")
+    {
+        pri_exp_statement(temp);
+    }
+    else if(temp->name == "if_statement")
+    {
+        if(temp->right->name == "ELSE")
+        {
+            pri_if_else(temp);
+        }
+        else
+        {
+            pri_if(temp);
+        }
+    }
+    else if(temp->name == "while_statement")
+    {
+        pri_while(temp);
+    }
+    else if(temp->name == "CONTINUE")
+    {
+        IntermediateRepresentation::IROperand ops_lab_cond(whileLables.top().cond);
+        IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_cond);
+        my_function->insertStatement(tempVar);
+
+    }
+    else if(temp->name == "BREAK")
+    {
+        IntermediateRepresentation::IROperand ops_lab_after(whileLables.top().after);
+        IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_after);
+        my_function->insertStatement(tempVar);
+
+    }
+    else if(temp->name == "RETURN") //return i32, no return ptr
+    {
+        temp = temp->right;
+        if(temp)
+        {
+            IntermediateRepresentation::IROperand ops_re = pri_exp(temp);
+             IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::RETURN, IntermediateRepresentation::i32, ops_re);
+            my_function->insertStatement(tempVar);
+        }
+        else
+        {
+            IntermediateRepresentation::IROperand ops_re;
+            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::RETURN, IntermediateRepresentation::t_void, ops_re);
+            my_function->insertStatement(tempVar);
+        }
+    }
+    else
+    {
+        std::cout<< "error in statement" << std::endl;
+        exit(-1);
+    }
 }
 
 IntermediateRepresentation::IROperand pri_cond(AST* a)
@@ -1219,24 +1203,34 @@ void pri_no_return_func(AST* a)
         {
             temp = param_list_stack.top()->right;
             param_list_stack.pop();
-            std::string param_name = temp->content;
-            // var or array
-            symbalTableMember tempTabVar = symTab->find(param_name);
+            // var, array or exp
+            if(temp->name == "IDENTIFIER")
+            {
+                std::string param_name = temp->content;
+                symbalTableMember tempTabVar = symTab->find(param_name);
             
-            if(tempTabVar.type == symbalTableMember::INT)
-            {
-                IntermediateRepresentation::IROperand my_ops_more(IntermediateRepresentation::i32, param_name);
-                my_ops.push_back(my_ops_more);
-            }
-            else if(tempTabVar.type == symbalTableMember::ARRAY)
-            {
-                IntermediateRepresentation::IROperand my_ops_more(IntermediateRepresentation::i32, param_name, true);
-                my_ops.push_back(my_ops_more);
+                if(tempTabVar.type == symbalTableMember::INT)
+                {
+                    IntermediateRepresentation::IROperand my_ops_more(IntermediateRepresentation::i32, param_name);
+                    my_ops.push_back(my_ops_more);
+                }
+                else if(tempTabVar.type == symbalTableMember::ARRAY)
+                {
+                    IntermediateRepresentation::IROperand my_ops_more(IntermediateRepresentation::i32, param_name, true);
+                    my_ops.push_back(my_ops_more);
+                }
+                else
+                {
+                    std::cout << "error at trans_block func_postfix_expression no type" << std::endl;
+                    exit(-1);
+                }
             }
             else
             {
-                std::cout << "error at trans_block func_postfix_expression no type" << std::endl;
+                IntermediateRepresentation::IROperand my_ops_more = pri_exp(temp);
+                my_ops.push_back(my_ops_more);
             }
+            
         }
         IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::CALL, IntermediateRepresentation::t_void, my_ops);
         my_function->insertStatement(tempVar);
@@ -1288,6 +1282,7 @@ IntermediateRepresentation::IROperand pri_return_func(AST* a)
             else
             {
                 std::cout << "error at trans_block func_postfix_expression no type" << std::endl;
+                exit(-1);
             }
         }
         IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::CALL, IntermediateRepresentation::i32, my_ops);
