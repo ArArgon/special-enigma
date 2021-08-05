@@ -407,8 +407,22 @@ namespace Backend::Translator {
             std::unordered_map<std::string, std::string> globalMapping;
             std::unordered_set<IntermediateRepresentation::IROperand> globalSymbols;
 
-            auto immNeedProc = [&] (int imm, int targetImm) {
+            auto immNeedProc = [&] (int imm, int immLen) {
                 // TODO: judge if imm is too big
+                switch (immLen) {
+                    case 8:
+                        return imm < 0 || imm > 255;
+                    case -8:
+                        return imm < 0 || imm > 255;
+                    case 12:
+                        return imm < 0 || imm > 4095;
+                    case -12:
+                        return imm > 4095 || imm < -4095;
+                    case 16:
+                        return imm < 0 || imm > 65535;
+                    default:
+                        throw std::runtime_error("Invalid immediate number length: " + std::to_string(immLen));
+                }
                 return false;
             };
 
@@ -589,8 +603,13 @@ namespace Backend::Translator {
                                             ins << MoveInstruction(mapping.at(opr), numToReg[pos]);
                                     } else {
                                         // TODO calculate offset
-#warning "Imm not implemented"
-                                        ins << LoadInstruction(mapping.at(opr), Operands::LoadSaveOperand(fp, 4 * pushSize + (pos - 5) * 4, true));
+//#warning "Imm not implemented"
+
+                                        int imm = 4 * pushSize + (pos - 5) * 4;
+                                        if (immNeedProc(imm, -12)) {
+                                            ins << LoadInstruction(mapping.at(opr), Operands::LoadSaveOperand(fp, loadImm(imm), true));
+                                        } else
+                                            ins << LoadInstruction(mapping.at(opr), Operands::LoadSaveOperand(fp, imm, true));
                                     }
                                 } else {
                                     /*
@@ -599,8 +618,13 @@ namespace Backend::Translator {
                                      *
                                      * str      %param, [sp, #((-pos - 1) * 4)]
                                      * */
-#warning "Imm not implemented"
-                                    ins << SaveInstruction(mapping.at(opr), Operands::LoadSaveOperand(sp, (-pos - 1) * 4, true));
+//#warning "Imm not implemented"
+
+                                    int imm = (-pos - 1) * 4;
+                                    if (immNeedProc(imm, -12)) {
+                                        ins << SaveInstruction(mapping.at(opr), Operands::LoadSaveOperand(sp, loadImm(imm), true));
+                                    } else
+                                    ins << SaveInstruction(mapping.at(opr), Operands::LoadSaveOperand(sp, imm, true));
                                 }
                             }
                         }
@@ -693,9 +717,12 @@ namespace Backend::Translator {
                              *
                              * ldr          %dest, [lr, #off]
                              * */
-#warning "Imm not implemented"
-                            ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, ops[1].getValue(),
-                                                                                              true));
+//#warning "Imm not implemented"
+                            int imm = ops[1].getValue();
+                            if (immNeedProc(imm, -12))
+                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, loadImm(imm), true));
+                            else
+                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, imm,true));
                         }
                             break;
                         case IntermediateRepresentation::STK_STR: {
@@ -704,9 +731,14 @@ namespace Backend::Translator {
                              *
                              * str          %src, [lr, #off]
                              * */
-#warning "Imm not implemented"
-                            if (ops.size() == 2)
-                                ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, ops[1].getValue(),true));
+//#warning "Imm not implemented"
+                            if (ops.size() == 2) {
+                                int imm = ops[1].getValue();
+                                if (immNeedProc(imm, -12))
+                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, loadImm(imm),true));
+                                else
+                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, imm,true));
+                            }
                             else {
                                 // that's for function
                                 // TODO: function stk_str
@@ -719,8 +751,13 @@ namespace Backend::Translator {
                              *
                              * ldr          %dest, [%base, #off]
                              * */
-#warning "Imm not implemented"
-                            ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), ops[2].getValue(), true));
+//#warning "Imm not implemented"
+
+                            int imm = ops[2].getValue();
+                            if (immNeedProc(imm, -12))
+                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(imm), true));
+                            else
+                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), imm, true));
                         }
                             break;
                         case IntermediateRepresentation::STORE: {
@@ -729,8 +766,13 @@ namespace Backend::Translator {
                              *
                              * str          %source, [%base, #off]
                              * */
-#warning "Imm not implemented"
-                            ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), ops[2].getValue(), true));
+//#warning "Imm not implemented"
+
+                            int imm = ops[2].getValue();
+                            if (immNeedProc(imm, -12))
+                                ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(imm), true));
+                            else
+                                ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), imm, true));
                         }
                             break;
                         case IntermediateRepresentation::CMP_EQ: {
@@ -743,7 +785,7 @@ namespace Backend::Translator {
 //#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
                                 int imm = ops[2].getValue();
-                                if (immNeedProc(imm, 8))
+                                if (immNeedProc(imm, -8))
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
                                 else
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
@@ -761,7 +803,7 @@ namespace Backend::Translator {
 //#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
                                 int imm = ops[2].getValue();
-                                if (immNeedProc(imm, 8))
+                                if (immNeedProc(imm, -8))
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
                                 else
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
@@ -779,7 +821,7 @@ namespace Backend::Translator {
 //#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
                                 int imm = ops[2].getValue();
-                                if (immNeedProc(imm, 8))
+                                if (immNeedProc(imm, -8))
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
                                 else
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
@@ -797,7 +839,7 @@ namespace Backend::Translator {
 //#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
                                 int imm = ops[2].getValue();
-                                if (immNeedProc(imm, 8))
+                                if (immNeedProc(imm, -8))
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
                                 else
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
@@ -815,7 +857,7 @@ namespace Backend::Translator {
 //#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
                                 int imm = ops[2].getValue();
-                                if (immNeedProc(imm, 8))
+                                if (immNeedProc(imm, -8))
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
                                 else
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
@@ -833,7 +875,7 @@ namespace Backend::Translator {
 //#warning "Imm8 is not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
                                 int imm = ops[2].getValue();
-                                if (immNeedProc(imm, 8))
+                                if (immNeedProc(imm, -8))
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(loadImm(imm)));
                                 else
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(imm8(imm)));
