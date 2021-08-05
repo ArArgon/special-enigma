@@ -52,7 +52,7 @@ namespace Backend::Translator {
         using allocator_t = Allocator<registerCount>;
         std::unique_ptr<ArmRegAllocator> allocator;
 
-        void procGlobal(InstructionStream& ins, std::unordered_map<std::string, std::string>& globalToLabel,
+        void procGlobal(InstructionStream& textIns, InstructionStream& dataIns, std::unordered_map<std::string, std::string>& globalToLabel,
                         std::unordered_set<IntermediateRepresentation::IROperand>& globalSymbol) {
             auto& globalVar = irProgram.getGlobal();
             auto& globalArr = irProgram.getGlobalArrays();
@@ -128,8 +128,8 @@ namespace Backend::Translator {
                 if (last_pos != size - 1)
                     valIns << DotInstruction(Instruction::DotInstruction::ZERO, (size - last_pos - 1) * 4, false);
             }
-            ins.insert(ins.end(), ptrIns.begin(), ptrIns.end());
-            ins.insert(ins.end(), valIns.begin(), valIns.end());
+            textIns.insert(textIns.end(), ptrIns.begin(), ptrIns.end());
+            dataIns.insert(dataIns.end(), valIns.begin(), valIns.end());
         }
 
         void preProcFunc(IntermediateRepresentation::Function &func, Util::StackScheme& stackScheme,
@@ -398,8 +398,7 @@ namespace Backend::Translator {
                 if (func.getReturnType() == IntermediateRepresentation::t_void) {
                     // return;
                     stmts.emplace_back(IntermediateRepresentation::RETURN, IntermediateRepresentation::t_void, IntermediateRepresentation::IROperand());
-                }
-                else if (func.getReturnType() == IntermediateRepresentation::t_void) {
+                } else {
                     // return 0;
                     stmts.emplace_back(IntermediateRepresentation::RETURN, IntermediateRepresentation::i32, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 0));
                 }
@@ -413,7 +412,7 @@ namespace Backend::Translator {
         explicit Translator(IntermediateRepresentation::IRProgram irProgram) : TranslatorBase(std::move(irProgram)) { }
 
         Instruction::InstructionStream doTranslation() override {
-            InstructionStream ins;
+            InstructionStream ins, dataIns;
             // TODO
             auto functions = irProgram.getFunctions();
             std::unordered_map<std::string, std::string> globalMapping;
@@ -447,7 +446,7 @@ namespace Backend::Translator {
             ins << DotInstruction(Instruction::DotInstruction::GLOBL, "main");
 
             // globalIns
-            procGlobal(ins, globalMapping, globalSymbols);
+            procGlobal(ins, dataIns, globalMapping, globalSymbols);
 
             for(auto& func : functions) {
                 auto stackLayout = Util::StackScheme { };
@@ -1004,6 +1003,12 @@ namespace Backend::Translator {
 
                 // TODO Imm Fix
             }
+
+            // insert data segment
+
+            ins << DotInstruction(Instruction::DotInstruction::DATA, "");
+            ins.insert(ins.end(), dataIns.begin(),  dataIns.end());
+            ins << DotInstruction(Instruction::DotInstruction::END, "");
             return ins;
         }
     };
