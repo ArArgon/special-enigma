@@ -168,7 +168,11 @@ namespace Backend::Translator {
                 valOpr.setVarName(valName);
 
                 for (auto it = stmts.begin(); it != stmts.end(); it++) {
-                    auto& ops = it->getRefOps();
+//                    auto& ops = it->getRefOps();
+                    if (it->getStmtType() == IntermediateRepresentation::GLB_VAR ||
+                        it->getStmtType() == IntermediateRepresentation::GLB_ARR ||
+                        it->getStmtType() == IntermediateRepresentation::GLB_CONST)
+                        continue;
                     auto analysis = Flow::BasicBlock::procRawStatement(*it);
                     IntermediateRepresentation::IROperand ptrOpr(sym);
                     ptrOpr.setVarName(ptrNamePrefix + "_" + std::to_string(occurrence));
@@ -180,6 +184,7 @@ namespace Backend::Translator {
                                 IntermediateRepresentation::i32, ptrOpr, IntermediateRepresentation::IROperand(sym.getVarName())
                         );
                         it = stmts.insert(it, regGlobal) + 1;
+                        analysis = Flow::BasicBlock::procRawStatement(*it);
                         ++occurrence;
                     }
                     if (analysis.def.count(sym)) {
@@ -189,32 +194,39 @@ namespace Backend::Translator {
                         if (it->getStmtType() == IntermediateRepresentation::MOV) {
                             // mov      %<varName>, %xxx
                             // store    %xxx, %glb_ptr_<varName>, 0
-                            *it = { IntermediateRepresentation::STORE, IntermediateRepresentation::i32, ops[1], ptrOpr, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32,0) };
+                            IntermediateRepresentation::IROperand sourceVal = it->getOps()[1];
+                            if (it->getOps()[1].getIrOpType() == IntermediateRepresentation::ImmVal) {
+                                // insert before
+                                /*
+                                 * mov      %<varName>_tmp_<occurrence>, %source
+                                 * */
+                                IntermediateRepresentation::IROperand tmpSource { IntermediateRepresentation::i32, sym.getVarName() + "_tmp_" + std::to_string(occurrence) };
+                                it = stmts.insert(it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpSource, sourceVal } ) + 1;
+                                sourceVal = tmpSource;
+                            }
+                            *it = { IntermediateRepresentation::STORE, IntermediateRepresentation::i32, sourceVal, ptrOpr, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32,0) };
                         } else {
                             // ins      %<varName>, %xxx, ...
                             // ins      %glb_val_<varName>, %xxx, ...
+                            analysis.replaceDef(sym, valOpr);
+                            analysis.replaceUse(sym, valOpr);
 
                             // insert before
                             // load     %glb_val_<varName>, %glb_ptr_<varName>, 0
-
                             it = stmts.insert(it, { IntermediateRepresentation::LOAD, IntermediateRepresentation::i32, valOpr, ptrOpr, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 0) } ) + 1;
 
                             // insert after
                             // store    %glb_val_<varName>, %glb_ptr_<varName>, 0
                             it = stmts.insert(it + 1, { IntermediateRepresentation::STORE, IntermediateRepresentation::i32, valOpr, ptrOpr, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 0) } ) - 1;
-
-                            analysis.replaceDef(sym, valOpr);
-                            analysis.replaceUse(sym, valOpr);
                         }
                     } else if (analysis.use.count(sym)) {
                         if (sym.getIsPointer())
                             analysis.replaceUse(sym, ptrOpr);
                         else {
+                            analysis.replaceUse(sym, valOpr);
                             // insert before
                             // load     %glb_val_<varName>, %glb_ptr_<varName>, 0
                             it = stmts.insert(it, { IntermediateRepresentation::LOAD, IntermediateRepresentation::i32, valOpr, ptrOpr, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 0) } ) + 1;
-
-                            analysis.replaceUse(sym, valOpr);
                         }
                     }
                 }
@@ -767,7 +779,6 @@ namespace Backend::Translator {
                              * str          %source, [%base, #off]
                              * */
 //#warning "Imm not implemented"
-
                             int imm = ops[2].getValue();
                             if (immNeedProc(imm, -12))
                                 ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(imm), true));
