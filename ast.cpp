@@ -49,7 +49,10 @@ struct AST *new_node(std::string name,int num,...)
         if(newnode->name=="CONSTANT")
         {
             newnode->type = "int";
-            newnode->value = atoi(yytext);
+            newnode->value = strtol(yytext, NULL, 0);
+            //std::cout <<yytext<< std::endl;
+            //std::cout <<newnode->value<< std::endl;
+
         }
         else
         {
