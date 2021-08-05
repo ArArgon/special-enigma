@@ -29,6 +29,7 @@ void pri_if(AST* a);
 void pri_if_else(AST* a);
 void pri_while(AST *a);
 IntermediateRepresentation::IROperand pri_cond(AST* a);
+void pri_single_statement_block(AST* a);
 void pri_no_return_func(AST* a);
 IntermediateRepresentation::IROperand pri_return_func(AST* a);
 IntermediateRepresentation::IROperand pri_exp(AST* a);
