@@ -91,6 +91,7 @@ namespace Instruction {
                 case Cond_ULess:
                     return "lo";
             }
+            throw std::runtime_error("Invalid IR: unexpected condition: " + std::to_string(cond));
         }
     };
 

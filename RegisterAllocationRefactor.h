@@ -196,6 +196,8 @@ namespace Backend::RegisterAllocation {
         void simplify() {
             var_t node = simplifyWorklist.front();
             simplifyWorklist.pop_front();
+            if (node == nullptr)
+                return;
             selectStack.push_back(node);
             for (auto adj : adjacent(node))
                 decrementDegree(adj);

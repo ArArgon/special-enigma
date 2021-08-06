@@ -37,7 +37,7 @@ namespace Backend::Util {
         static constexpr size_t defaultSize = 200;
 
         size_t cnt = 0;
-        std::vector<std::unordered_set<size_t>> G;
+        std::vector<std::vector<size_t>*> G;
         std::unordered_set<NodeType> nodes;
         std::unordered_map<NodeType, int> nodeToId;
         std::unordered_map<int, NodeType> idToNode;
@@ -64,6 +64,7 @@ namespace Backend::Util {
             if (G.size() > cnt)
                 G.resize(2 * G.size());
             size_t id = ++cnt;
+            G[id] = new std::vector<size_t>;
             nodeToId[node] = id;
             idToNode[id] = node;
             degree[id] = 0;
@@ -90,7 +91,7 @@ namespace Backend::Util {
             if (!containsEdge(a, b))
                 adjSet.emplace(a, b);
             degree[id_a]++;
-            G[id_a].insert(id_b);
+            G[id_a]->push_back(id_b);
             precursors[id_b].insert(id_a);
             successors[id_a].insert(id_b);
         }
@@ -112,7 +113,7 @@ namespace Backend::Util {
             std::unordered_set<NodeType> ans;
             size_t id = nodeToId[node];
 
-            for (auto& suc : G[id])
+            for (auto& suc : *G[id])
                 ans.insert(idToNode[suc]);
 
             return ans;
@@ -147,6 +148,11 @@ namespace Backend::Util {
         template<class T>
         void doFunc(const T& func) {
             func(this);
+        }
+
+        ~Graph() {
+            for (auto& node : G)
+                delete node;
         }
 
     };
