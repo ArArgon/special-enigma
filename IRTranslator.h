@@ -345,8 +345,8 @@ namespace Backend::Translator {
                             tmpOpr.setVarName(funcName + "_arg_imm_" + std::to_string(i));
                         if (i >= 6) {
                             tmpOpr.setValue(-(i - 5));
-                        } else
-                            replaceList.push_back(tmpOpr);
+                        }
+                        replaceList.push_back(tmpOpr);
                         paramOpr.push_back(tmpOpr);
                     }
                     // insert placeholders
@@ -359,7 +359,10 @@ namespace Backend::Translator {
                             paramOpr.push_back(tmpOpr);
                         }
                     }
-                    it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, paramOpr }) + 1;
+
+                    for (auto& opr : paramOpr)
+                        it = stmts.insert(it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32,
+                                                { opr } }) + 1;
 
                     if (paramCount > 4) {
                         for (int i = 6; i <= paramCount + 1; i++) {
@@ -421,7 +424,7 @@ namespace Backend::Translator {
             std::unordered_set<IntermediateRepresentation::IROperand> globalSymbols;
 
             auto immNeedProc = [&] (int imm, int immLen) {
-                // TODO: judge if imm is too big
+                // judge if imm is too big
                 switch (immLen) {
                     case 8:
                         return imm < 0 || imm > 255;
@@ -487,7 +490,7 @@ namespace Backend::Translator {
                 Operands::RegisterList list;
                 size_t pushSize = 0;
 
-                list.emplaceRegister(r4, r5, r6, r7, r8, r9);
+                list.emplaceRegister(r4, r5, r6, r7, r8, r9, r10);
 
 //                remainRegisters.emplace_back(r0, r1, r2, r3, r4, r5, r6, r7, r8);
 //                for (auto colour : totalColours) {
@@ -635,7 +638,6 @@ namespace Backend::Translator {
                                     } else {
                                         // TODO calculate offset
 //#warning "Imm not implemented"
-
                                         int imm = 4 * pushSize + (pos - 5) * 4;
                                         if (immNeedProc(imm, -12)) {
                                             ins << LoadInstruction(mapping.at(opr), Operands::LoadSaveOperand(fp, loadImm(imm), true));
@@ -746,17 +748,17 @@ namespace Backend::Translator {
                             /*
                              * stk_load     i32 %dest, %off
                              *
-                             * ldr          %dest, [lr, #off]
+                             * ldr          %dest, [fp, #off]
                              * */
 //#warning "Imm not implemented"
                             if (ops[1].getIrOpType() == IntermediateRepresentation::Var) {
-                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, mapping.at(ops[1]), true));
+                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, mapping.at(ops[1]), true));
                             } else {
                                 int imm = ops[1].getValue();
                                 if (immNeedProc(imm, -12))
-                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, loadImm(imm), true));
+                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, loadImm(imm), true));
                                 else
-                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, imm,true));
+                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, imm,true));
                             }
                         }
                             break;
@@ -764,22 +766,21 @@ namespace Backend::Translator {
                             /*
                              * stk_str      i32 %src, %off
                              *
-                             * str          %src, [lr, #off]
+                             * str          %src, [fp, #off]
                              * */
 //#warning "Imm not implemented"
                             if (ops.size() == 2) {
                                 if (ops[1].getIrOpType() == IntermediateRepresentation::Var) {
-                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, mapping.at(ops[1]),true));
+                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, mapping.at(ops[1]),true));
                                 } else {
                                     int imm = ops[1].getValue();
                                     if (immNeedProc(imm, -12))
-                                        ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, loadImm(imm),true));
+                                        ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, loadImm(imm),true));
                                     else
-                                        ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, imm,true));
+                                        ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, imm,true));
                                 }
 
-                            }
-                            else {
+                            } else {
                                 // that's for function
                                 // TODO: function stk_str
                             }
@@ -824,14 +825,14 @@ namespace Backend::Translator {
                                 }
                             } else {
                                 if (ops[2].getIrOpType() == IntermediateRepresentation::Var) {
-                                    ins << SaveInstruction(r8, Operands::LoadSaveOperand(mapping.at(ops[1]), mapping.at(ops[2]), true));
+                                    ins << SaveInstruction(r10, Operands::LoadSaveOperand(mapping.at(ops[1]), mapping.at(ops[2]), true));
                                 } else {
                                     int immOff = ops[2].getValue();
-                                    ins << LoadInstruction(r8, ops[0].getValue());
+                                    ins << LoadInstruction(r10, ops[0].getValue());
                                     if (immNeedProc(immOff, -12))
-                                        ins << SaveInstruction(r8, Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(immOff), true));
+                                        ins << SaveInstruction(r10, Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(immOff), true));
                                     else
-                                        ins << SaveInstruction(r8, Operands::LoadSaveOperand(mapping.at(ops[1]), immOff, true));
+                                        ins << SaveInstruction(r10, Operands::LoadSaveOperand(mapping.at(ops[1]), immOff, true));
                                 }
                             }
                         }
