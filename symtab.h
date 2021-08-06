@@ -119,7 +119,7 @@ public:
             else
             {
                 std::cout << "error at find " << in_name << std::endl;
-                exit(0);
+                exit(-1);
             }
         }
     }
