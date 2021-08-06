@@ -7,70 +7,84 @@
 
 namespace Backend::RegisterAllocation {
 
-    using baseType = RegisterAllocator<registerCount>;
-    using bb_t = Flow::bb_ptr_t;
-
-    using is_t = Flow::BasicBlock::BBStatement*;
-    using var_t = IntermediateRepresentation::IROperand;
-
-    std::vector<bb_t> basicBlocks;
-    std::unordered_map<var_t, size_t> preColourScheme;
-    std::unordered_set<var_t> preColoured;
-
     template<size_t registerCount>
     class NoRegisterAllocation : public RegisterAllocator<registerCount> {
 
+        using baseType = RegisterAllocator<registerCount>;
+        using bb_t = Flow::bb_ptr_t;
+
+        using is_t = Flow::BasicBlock::BBStatement*;
+        using var_t = IntermediateRepresentation::IROperand;
+
+        std::shared_ptr<Flow::Flow> flowAnalyzer = nullptr;
+        std::vector<bb_t> basicBlocks;
+        std::unordered_map<var_t, size_t> preColourScheme;
+        std::unordered_set<var_t> preColoured;
+
         void doFunctionScan() override {
             while (true) {
+
+                flowAnalyzer = std::make_shared<Flow::Flow>(Flow::Flow { baseType::sourceFunc });
+                basicBlocks = flowAnalyzer->getBasicBlocks();
+
                 rewriteFunction();
             }
         }
 
         void rewriteFunction() {
 
-            for (auto& bb : basicBlocks) {
-                auto& ins = bb->statements;
+            for (auto &bb : basicBlocks) {
+                auto &ins = bb->statements;
                 for (auto it = ins.begin(); it != ins.end(); it++) {
-                    for (auto& useVar : it->use) {
+                    for (auto &useVar : it->use) {
                         baseType::stackScheme->allocate(useVar);
                     }
-                    for (auto& defVar : it->def) {
+                    for (auto &defVar : it->def) {
                         baseType::stackScheme->allocate(defVar);
                     }
                 }
             }
 
-            for (auto& bb : basicBlocks) {
-                auto& ins = bb->statements;
+            for (auto &bb : basicBlocks) {
+                auto &ins = bb->statements;
                 for (auto it = ins.begin(); it != ins.end(); it++) {
                     if (!it->init)
                         continue;
-                    std::unordered_set<size_t> registerSet = { 0,1,2,3 };
+                    std::unordered_set<size_t> registerSet = {0, 1, 2, 3};
                     auto afterIt = it;
-                    for (auto& useVar : it->use) {
+                    for (auto &useVar : it->use) {
                         if (preColourScheme.count(useVar)) {
                             registerSet.erase(preColourScheme[useVar]);
                             continue;
                         }
                         size_t offset = baseType::stackScheme->getVariablePosition(useVar);
-                        
+
                         auto tmpRegister = useVar;
                         tmpRegister.setVarName("r" + std::to_string(*registerSet.begin()));
 
                         // insert before
                         Flow::BasicBlock::BBStatement tmpStmt;
-                        auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, tmpRegister, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                        auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD,
+                                                                             IntermediateRepresentation::i32,
+                                                                             tmpRegister,
+                                                                             IntermediateRepresentation::IROperand(
+                                                                                     IntermediateRepresentation::i32,
+                                                                                     offset));
                         tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                         it = ins.insert(it, tmpStmt) + 1;
 
                         // insert after
-                        load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, tmpRegister, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                        load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR,
+                                                                        IntermediateRepresentation::i32, tmpRegister,
+                                                                        IntermediateRepresentation::IROperand(
+                                                                                IntermediateRepresentation::i32,
+                                                                                offset));
                         tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                         afterIt = ins.insert(afterIt + 1, tmpStmt);
 
                     }
 
-                    for (auto& defVar : it->def) {
+                    for (auto &defVar : it->def) {
                         if (preColourScheme.count(defVar)) {
                             registerSet.erase(preColourScheme[defVar]);
                             continue;
@@ -82,22 +96,31 @@ namespace Backend::RegisterAllocation {
 
                         // insert before
                         Flow::BasicBlock::BBStatement tmpStmt;
-                        auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, tmpRegister, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                        auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD,
+                                                                             IntermediateRepresentation::i32,
+                                                                             tmpRegister,
+                                                                             IntermediateRepresentation::IROperand(
+                                                                                     IntermediateRepresentation::i32,
+                                                                                     offset));
                         tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                         it = ins.insert(it, tmpStmt) + 1;
 
                         // insert after
-                        load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, tmpRegister, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                        load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR,
+                                                                        IntermediateRepresentation::i32, tmpRegister,
+                                                                        IntermediateRepresentation::IROperand(
+                                                                                IntermediateRepresentation::i32,
+                                                                                offset));
                         tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                         afterIt = ins.insert(afterIt + 1, tmpStmt);
 
                     }
                 }
             }
+        }
 
     public:
-
-        ColourAllocator(Util::StackScheme * stack, IntermediateRepresentation::Function * func) :
+        NoRegisterAllocation(Util::StackScheme * stack, IntermediateRepresentation::Function * func) :
             baseType::RegisterAllocator(stack, func) {
             // load pre-colour
             //
