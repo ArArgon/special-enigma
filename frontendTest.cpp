@@ -4,6 +4,9 @@
 #include "genIR.h"
 #include "eliPhi.h"
 
+bool isDebug = true;
+int optLevel = 2;
+
 int main(int argc, char *argv[]) {
 
     AST *ast = parseAST(argv[1]);
