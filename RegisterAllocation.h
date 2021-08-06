@@ -689,7 +689,10 @@ namespace Backend::RegisterAllocation {
                     // pre-colour %dest
                     if (ops[0].getIrOpType() == IntermediateRepresentation::Var) {
                         preColoured.insert(ops[0]);
-                        preColourScheme[ops[0]] = 0;
+                        if (ops[1].getStrValue() != "__aeabi_idivmod")
+                            preColourScheme[ops[0]] = 0;
+                        else
+                            preColourScheme[ops[0]] = 1;
                     }
                     for (int i = 2; i < std::min(6, opsCount); i++) {
                         if (ops[i].getIrOpType() == IntermediateRepresentation::Var) {
