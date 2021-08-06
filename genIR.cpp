@@ -744,8 +744,9 @@ void pri_exp_statement(AST* a)
     }
     else
     {
-        std::cout << "error expression_statement" << std::endl;
-        exit(-1);
+        // example: 
+        //     k+1;
+        pri_exp(temp);
     }
 }
 
