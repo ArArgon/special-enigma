@@ -161,11 +161,12 @@ void pri_var(AST* a, std::string type, bool isconst, bool isglobal)
         else
         {
             std::string name = a->content;
-
+            /*
             IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, name);
             IntermediateRepresentation::IROperand my_ops1(IntermediateRepresentation::i32, 0);
             IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, my_ops0, my_ops1);
             my_function->insertStatement(tempVar);
+            */
             symbalTableMember symTabM;
             symTabM.init(name, name, symbalTableMember::INT, 0);
             symTab->addLocalVar(symTabM);
@@ -743,8 +744,9 @@ void pri_exp_statement(AST* a)
     }
     else
     {
-        std::cout << "error expression_statement" << std::endl;
-        exit(-1);
+        // example: 
+        //     k+1;
+        pri_exp(temp);
     }
 }
 
