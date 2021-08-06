@@ -21,7 +21,7 @@ void pri_var(AST* a, std::string type, bool isconst, bool isglobal);
 void pri_array(AST* a, std::string type, bool isconst, bool isglobal);
 
 void trans_func_def(AST* a);
-void trans_param(AST* a);
+void trans_param(AST* a, std::string func_name, std::vector<int> &value);
 void trans_block(AST* a);
 
 void pri_exp_statement(AST* a);
