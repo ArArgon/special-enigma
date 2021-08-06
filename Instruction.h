@@ -30,7 +30,7 @@ namespace Instruction {
         ASR = 0, LSL, LSR, ROR, RRX
     };
     const std::string shiftASM[] = {
-            "ASR", "LSL", "LSR", "ROR", "RRX"
+            "asr", "lsl", "lsr", "ror", "rrx"
     };
 
     enum DataSegType {

@@ -575,10 +575,18 @@ namespace Backend::Translator {
                                 ins << MultiplicationInstruction(dest, opr1, mapping.at(ops[2]));
                             else {
                                 int imm = ops[2].getValue();
-                                if (immNeedProc(imm, 12))
+                                if (!(imm & (imm - 1)) && imm >= 0) {
+                                    // 2^n
+                                    if (imm == 0)
+                                        ins << MoveInstruction(dest, imm16(0));
+                                    else {
+                                        if (dest != opr1)
+                                            ins << MoveInstruction(dest, opr1);
+                                        ins << ShiftInstruction(Instruction::LSL, dest, dest, floor(log2(imm)));
+                                    }
+                                } else {
                                     ins << MultiplicationInstruction(dest, opr1, Operands::Operand2(loadImm(imm)));
-                                else
-                                    ins << MultiplicationInstruction(dest, opr1, imm12(imm));
+                                }
                             }
                         }
                             break;
@@ -739,11 +747,15 @@ namespace Backend::Translator {
                              * ldr          %dest, [lr, #off]
                              * */
 //#warning "Imm not implemented"
-                            int imm = ops[1].getValue();
-                            if (immNeedProc(imm, -12))
-                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, loadImm(imm), true));
-                            else
-                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, imm,true));
+                            if (ops[1].getIrOpType() == IntermediateRepresentation::Var) {
+                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, mapping.at(ops[1]), true));
+                            } else {
+                                int imm = ops[1].getValue();
+                                if (immNeedProc(imm, -12))
+                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, loadImm(imm), true));
+                                else
+                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, imm,true));
+                            }
                         }
                             break;
                         case IntermediateRepresentation::STK_STR: {
@@ -754,11 +766,16 @@ namespace Backend::Translator {
                              * */
 //#warning "Imm not implemented"
                             if (ops.size() == 2) {
-                                int imm = ops[1].getValue();
-                                if (immNeedProc(imm, -12))
-                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, loadImm(imm),true));
-                                else
-                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, imm,true));
+                                if (ops[1].getIrOpType() == IntermediateRepresentation::Var) {
+                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, mapping.at(ops[1]),true));
+                                } else {
+                                    int imm = ops[1].getValue();
+                                    if (immNeedProc(imm, -12))
+                                        ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, loadImm(imm),true));
+                                    else
+                                        ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(lr, imm,true));
+                                }
+
                             }
                             else {
                                 // that's for function
@@ -774,11 +791,16 @@ namespace Backend::Translator {
                              * */
 //#warning "Imm not implemented"
 
-                            int imm = ops[2].getValue();
-                            if (immNeedProc(imm, -12))
-                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(imm), true));
-                            else
-                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), imm, true));
+                            if (ops[2].getIrOpType() == IntermediateRepresentation::Var) {
+                                ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), mapping.at(ops[2]), true));
+                            } else {
+                                int imm = ops[2].getValue();
+                                if (immNeedProc(imm, -12))
+                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(imm), true));
+                                else
+                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), imm, true));
+
+                            }
                         }
                             break;
                         case IntermediateRepresentation::STORE: {
@@ -789,19 +811,26 @@ namespace Backend::Translator {
                              * */
 //#warning "Imm not implemented"
                             if (ops[0].getIrOpType() == IntermediateRepresentation::Var) {
-                                int imm = ops[2].getValue();
-                                if (immNeedProc(imm, -12))
-                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(imm), true));
-                                else
-                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), imm, true));
+                                if (ops[2].getIrOpType() == IntermediateRepresentation::Var) {
+                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), mapping.at(ops[2]), true));
+                                } else {
+                                    int imm = ops[2].getValue();
+                                    if (immNeedProc(imm, -12))
+                                        ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(imm), true));
+                                    else
+                                        ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), imm, true));
+                                }
                             } else {
-                                int immOff = ops[2].getValue();
-                                ins << LoadInstruction(r8, ops[0].getValue());
-                                if (immNeedProc(immOff, -12))
-                                    ins << SaveInstruction(r8, Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(immOff), true));
-                                else
-                                    ins << SaveInstruction(r8, Operands::LoadSaveOperand(mapping.at(ops[1]), immOff, true));
-
+                                if (ops[2].getIrOpType() == IntermediateRepresentation::Var) {
+                                    ins << SaveInstruction(r8, Operands::LoadSaveOperand(mapping.at(ops[1]), mapping.at(ops[2]), true));
+                                } else {
+                                    int immOff = ops[2].getValue();
+                                    ins << LoadInstruction(r8, ops[0].getValue());
+                                    if (immNeedProc(immOff, -12))
+                                        ins << SaveInstruction(r8, Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(immOff), true));
+                                    else
+                                        ins << SaveInstruction(r8, Operands::LoadSaveOperand(mapping.at(ops[1]), immOff, true));
+                                }
                             }
                         }
                             break;
