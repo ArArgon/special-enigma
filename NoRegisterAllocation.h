@@ -21,6 +21,16 @@ namespace Backend::RegisterAllocation {
         std::unordered_map<var_t, size_t> preColourScheme;
         std::unordered_set<var_t> preColoured;
 
+        void saveFunction() {
+            std::vector<IntermediateRepresentation::Statement> stmts;
+            for (auto &bb : basicBlocks) {
+                for (auto &ins : bb->statements) {
+                    stmts.push_back(*ins.statement);
+                }
+            }
+            baseType::sourceFunc->setStatements(stmts);
+        }
+
         void doFunctionScan() override {
             while (true) {
 
