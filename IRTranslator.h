@@ -858,6 +858,7 @@ namespace Backend::Translator {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
 //#warning "Imm16 is not implemented"
+                            ins << MoveInstruction(mapping.at(ops[0]), imm16(0));
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_Equal);
                             ins << std::move(moveq);
@@ -876,6 +877,7 @@ namespace Backend::Translator {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
 //#warning "Imm16 is not implemented"
+                            ins << MoveInstruction(mapping.at(ops[0]), imm16(0));
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_NotEqual);
                             ins << std::move(moveq);
@@ -894,6 +896,7 @@ namespace Backend::Translator {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
 //#warning "Imm16 is not implemented"
+                            ins << MoveInstruction(mapping.at(ops[0]), imm16(0));
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_SGreaterEqual);
                             ins << std::move(moveq);
@@ -912,6 +915,7 @@ namespace Backend::Translator {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
 //#warning "Imm16 is not implemented"
+                            ins << MoveInstruction(mapping.at(ops[0]), imm16(0));
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_SLessEqual);
                             ins << std::move(moveq);
@@ -930,6 +934,7 @@ namespace Backend::Translator {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
 //#warning "Imm16 is not implemented"
+                            ins << MoveInstruction(mapping.at(ops[0]), imm16(0));
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_SGreater);
                             ins << std::move(moveq);
@@ -948,6 +953,7 @@ namespace Backend::Translator {
                                 ins << ComparisonInstruction(CMP, mapping.at(ops[1]), Operands::Operand2(mapping.at(ops[2])));
                             }
 //#warning "Imm16 is not implemented"
+                            ins << MoveInstruction(mapping.at(ops[0]), imm16(0));
                             auto moveq = MoveInstruction(mapping.at(ops[0]), imm16(1));
                             moveq.setCondition(Instruction::Condition::Cond_SLess);
                             ins << std::move(moveq);
