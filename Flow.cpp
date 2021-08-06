@@ -220,7 +220,6 @@ namespace Backend::Flow {
             case IntermediateRepresentation::DIV:
             case IntermediateRepresentation::MOD:
             case IntermediateRepresentation::SUB:
-            case IntermediateRepresentation::RETURN:
             case IntermediateRepresentation::MOV:
             case IntermediateRepresentation::LOAD:
             case IntermediateRepresentation::CMP_EQ:
@@ -241,6 +240,11 @@ namespace Backend::Flow {
                 for (int i = 1; i < opsCount; i++)
                     if (ops[i] == oldVar)
                         ops[i] = newVar;
+            }
+                break;
+            case IntermediateRepresentation::RETURN: {
+                if (ops[0] == oldVar)
+                    ops[0] = newVar;
             }
                 break;
             case IntermediateRepresentation::GLB_VAR:
