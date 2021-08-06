@@ -430,6 +430,8 @@ namespace Backend::Translator {
                         return imm < 0 || imm > 255;
                     case -8:
                         return imm < 0 || imm > 255;
+                    case 10:
+                        return imm < 0 || imm > 1024;
                     case 12:
                         return imm < 0 || imm > 4095;
                     case -12:
@@ -712,7 +714,7 @@ namespace Backend::Translator {
                                 // or
                                 // mov      %dest, #<value>
                                 int imm = ops[1].getValue();
-                                if (immNeedProc(imm, 16))
+                                if (immNeedProc(imm, 10))
                                     ins << LoadInstruction(mapping.at(ops[0]), imm);
                                 else
                                     ins << MoveInstruction(mapping.at(ops[0]), imm16(imm));
