@@ -377,7 +377,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                     }
                 }
             }
-            arrSize *= 4;
+            arrSize *= 4; //here local arrSize is bytes
 
             IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, name, true);
             IntermediateRepresentation::IROperand my_ops1(IntermediateRepresentation::i32, arrSize);
@@ -1509,10 +1509,22 @@ IntermediateRepresentation::IROperand pri_arr_postfix_expression(AST* a)
             }
         }
     }
-    IntermediateRepresentation::IROperand ops_num_4(IntermediateRepresentation::i32, 4);
+    
     IntermediateRepresentation::IROperand ops_off(IntermediateRepresentation::i32, getNewNameLocalVar());
-    IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MUL, IntermediateRepresentation::i32, ops_off, ops_temp0, ops_num_4);
-    my_function->insertStatement(tempVar);
+    if(ops_temp0.getIrOpType() == IntermediateRepresentation::ImmVal)
+    {
+        int value = ops_temp0.getValue();
+        IntermediateRepresentation::IROperand ops_num(IntermediateRepresentation::i32, value*4);
+        IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, ops_off, ops_num);
+        my_function->insertStatement(tempVar);
+    }
+    else
+    {
+        IntermediateRepresentation::IROperand ops_num_4(IntermediateRepresentation::i32, 4);
+        IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MUL, IntermediateRepresentation::i32, ops_off, ops_temp0, ops_num_4);
+        my_function->insertStatement(tempVar);
+    }
+    
     IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
     IntermediateRepresentation::IROperand ops_base(IntermediateRepresentation::i32, arrName, true);
     IntermediateRepresentation::Statement tempVar1(IntermediateRepresentation::LOAD, IntermediateRepresentation::i32, ops_dest, ops_base, ops_off);
@@ -1599,9 +1611,3 @@ std::string getNewNameLocalVar()
 }
 
 std::string getNewLabel()
-{
-    labelNum++;
-    std::string label = "label_"+std::to_string(labelNum);
-
-    return label;
-}
