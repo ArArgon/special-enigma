@@ -145,4 +145,4 @@ namespace Backend::RegisterAllocation {
     };
 }
 
-#endif //SYSYBACKEND_NOREGISTERALLOCATION_H
+#endif //SYSYBACKEND_REGISTERALLOCATIONREFACTOR_H
