@@ -707,6 +707,7 @@ namespace Instruction {
 
         LoadInstruction(Operands::Register targetReg, Operands::Label label) : label(std::move(label)), destIsLabel(true) {
             LoadSaveProto::target = std::move(targetReg);
+            bitSize = bit_DEF;
         }
 
         LoadInstruction(Operands::Register targetReg, int immVal) {
