@@ -12,7 +12,7 @@ std::vector<IntermediateRepresentation::Function> *my_functions;
 std::vector<IntermediateRepresentation::IRArray> *my_globalArrays;
 IntermediateRepresentation::Function* my_function;
 int localVarNum;
-int labelNum;
+int labelNum = 0;
 std::stack<whileLable> whileLables;
 
 
@@ -528,7 +528,6 @@ void trans_func_def(AST* a)
 {
     my_function = new IntermediateRepresentation::Function;
     localVarNum = 1;
-    labelNum = 0;
 
     AST* temp = a->left;
     std::string type = temp->name; //INT or VOID
