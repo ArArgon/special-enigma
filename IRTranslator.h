@@ -329,22 +329,24 @@ namespace Backend::Translator {
                     auto replaceDest = ops[0];
                     if (ops[0].getIrOpType() == IntermediateRepresentation::Var)
                         replaceDest.setVarName(funcName + "_dst_" + ops[0].getVarName());
+                    // %dest
                     replaceList.push_back(replaceDest);
+                    // func
                     replaceList.push_back(ops[1]);
 
                     std::vector<IntermediateRepresentation::IROperand> paramOpr;
                     for (int i = 1 + 1; i <= paramCount + 1; i++) {
                         // prepare parameters
                         // param    [%<funcName>_arg_%x, -(x-4)]
-                        auto tmpOpr = IntermediateRepresentation::IROperand(IntermediateRepresentation::t_void, "");
+                        auto tmpOpr = IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, "");
                         if (ops[i].getIrOpType() == IntermediateRepresentation::Var)
                             tmpOpr.setVarName(funcName + "_arg_" + ops[i].getVarName());
                         else
                             tmpOpr.setVarName(funcName + "_arg_imm_" + std::to_string(i));
                         if (i >= 6) {
-                            tmpOpr.setIrType(IntermediateRepresentation::i32);
                             tmpOpr.setValue(-(i - 5));
-                        }
+                        } else
+                            replaceList.push_back(tmpOpr);
                         paramOpr.push_back(tmpOpr);
                     }
                     // insert placeholders
@@ -377,7 +379,7 @@ namespace Backend::Translator {
                             tmpOpr.setVarName(funcName + "_arg_" + ops[i].getVarName());
                         else
                             tmpOpr.setVarName(funcName + "_arg_imm_" + std::to_string(i));
-                        replaceList.push_back(tmpOpr);
+//                        replaceList.push_back(tmpOpr);
                         // mov      %<funcName>_arg_%x, %x
                         it = stmts.insert(it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpOpr, ops[i] } ) + 1;
                     }
