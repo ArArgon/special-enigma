@@ -233,7 +233,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                     
                 }
             }
-            arrSize *= 4;
+            //arrSize *= 4; IRArray arrSize is elements
 
             IntermediateRepresentation::IRArray my_globalArray(name, arrSize);
             
@@ -318,7 +318,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                     }
                 }
             }
-            arrSize *= 4;
+            //arrSize *= 4;
             
             IntermediateRepresentation::IRArray my_globalArray(name, arrSize);
             my_globalArrays->push_back(my_globalArray);
