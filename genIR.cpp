@@ -1515,8 +1515,11 @@ IntermediateRepresentation::IROperand pri_arr_postfix_expression(AST* a)
     {
         int value = ops_temp0.getValue();
         IntermediateRepresentation::IROperand ops_num(IntermediateRepresentation::i32, value*4);
+        /*
         IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, ops_off, ops_num);
         my_function->insertStatement(tempVar);
+        */
+       ops_off = ops_num;
     }
     else
     {
@@ -1611,3 +1614,9 @@ std::string getNewNameLocalVar()
 }
 
 std::string getNewLabel()
+{
+    labelNum++;
+    std::string label = "label_"+std::to_string(labelNum);
+
+    return label;
+}
