@@ -606,16 +606,6 @@ namespace Backend::RegisterAllocation {
             }
         }
 
-        void saveFunction() {
-            std::vector<IntermediateRepresentation::Statement> stmts;
-            for (auto &bb : basicBlocks) {
-                for (auto &ins : bb->statements) {
-                    stmts.push_back(*ins.statement);
-                }
-            }
-            baseType::sourceFunc->setStatements(stmts);
-        }
-
     public:
 
         ColourAllocatorRewrite(Util::StackScheme* stack, IntermediateRepresentation::Function* func)  :
@@ -632,7 +622,6 @@ namespace Backend::RegisterAllocation {
 //                std::cout << "\t" << node.first.toString() << ": " << node.second << std::endl;
 
             doFunctionScan();
-            saveFunction();
             if (isDebug)
                 std::cerr << "toVReg Count: " << toVReg.size() << std::endl << "";
             for (auto var : toVReg) {
