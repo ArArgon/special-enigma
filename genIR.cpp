@@ -1258,6 +1258,40 @@ IntermediateRepresentation::IROperand pri_cond(AST* a)
                 return ops_dest;
             }
         }
+        else if(cond_operator == "MUL")
+        {
+            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal && ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+            {
+                int value_l = ops_l.getValue();
+                int value_r = ops_r.getValue();
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l*value_r);
+                return ops_dest;
+            }
+            else
+            {
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MUL, IntermediateRepresentation::i32, ops_dest, ops_l, ops_r);
+                my_function->insertStatement(tempVar);
+                return ops_dest;
+            }
+        }
+        else if(cond_operator == "DIV")
+        {
+            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal && ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+            {
+                int value_l = ops_l.getValue();
+                int value_r = ops_r.getValue();
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l/value_r);
+                return ops_dest;
+            }
+            else
+            {
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::DIV, IntermediateRepresentation::i32, ops_dest, ops_l, ops_r);
+                my_function->insertStatement(tempVar);
+                return ops_dest;
+            }
+        }
         else if(cond_operator == "MOD")
         {
             if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal && ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
@@ -1277,7 +1311,7 @@ IntermediateRepresentation::IROperand pri_cond(AST* a)
         }
         else
         {
-            std::cout << "error at pri_cond" << std::endl;
+            std::cout << "error at pri_cond :" << cond_operator << std::endl;
             IntermediateRepresentation::IROperand ops_0(IntermediateRepresentation::i32, 0);
             return ops_0;
         }
