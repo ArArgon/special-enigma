@@ -33,6 +33,7 @@ void pri_single_statement_block(AST* a);
 void pri_no_return_func(AST* a);
 IntermediateRepresentation::IROperand pri_return_func(AST* a);
 IntermediateRepresentation::IROperand pri_exp(AST* a);
+IntermediateRepresentation::IROperand pri_const_var_exp(AST* a, bool isglobal);
 IntermediateRepresentation::IROperand pri_arr_postfix_expression(AST* a);
 void pri_LVal_arr_postfix_expression(AST* LVal, AST* exp);
 
