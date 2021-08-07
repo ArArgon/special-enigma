@@ -29,6 +29,8 @@ namespace Instruction::Utilities {
             else
                 ans += "        ";
             ans += ins;
+            if (opr.empty())
+                return ans;
             if (usingTab)
                 ans += std::string("\t") + (ins.size() < 4 ? "\t" : "");
             else {

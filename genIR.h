@@ -21,7 +21,7 @@ void pri_var(AST* a, std::string type, bool isconst, bool isglobal);
 void pri_array(AST* a, std::string type, bool isconst, bool isglobal);
 
 void trans_func_def(AST* a);
-void trans_param(AST* a);
+void trans_param(AST* a, std::string func_name, std::vector<int> &value);
 void trans_block(AST* a);
 
 void pri_exp_statement(AST* a);
@@ -29,6 +29,7 @@ void pri_if(AST* a);
 void pri_if_else(AST* a);
 void pri_while(AST *a);
 IntermediateRepresentation::IROperand pri_cond(AST* a);
+void pri_single_statement_block(AST* a);
 void pri_no_return_func(AST* a);
 IntermediateRepresentation::IROperand pri_return_func(AST* a);
 IntermediateRepresentation::IROperand pri_exp(AST* a);

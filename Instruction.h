@@ -30,7 +30,7 @@ namespace Instruction {
         ASR = 0, LSL, LSR, ROR, RRX
     };
     const std::string shiftASM[] = {
-            "ASR", "LSL", "LSR", "ROR", "RRX"
+            "asr", "lsl", "lsr", "ror", "rrx"
     };
 
     enum DataSegType {
@@ -91,6 +91,7 @@ namespace Instruction {
                 case Cond_ULess:
                     return "lo";
             }
+            throw std::runtime_error("Invalid IR: unexpected condition: " + std::to_string(cond));
         }
     };
 
@@ -132,7 +133,7 @@ namespace Instruction {
     class DotInstruction : public MachineInstruction {
     public:
         enum DotType {
-            BYTE, BYTE_2, BYTE_4, BYTE_8, ASCII, ASCIZ, LONG, WORD, ZERO, GLOBL, TEXT
+            BYTE, BYTE_2, BYTE_4, BYTE_8, ASCII, ASCIZ, LONG, WORD, ZERO, GLOBL, TEXT, DATA, END
         };
     private:
         DotType dotType;
@@ -211,10 +212,16 @@ namespace Instruction {
                     ins = ".zero";
                     break;
                 case GLOBL:
-                    ins = ".globl";
+                    ins = ".global";
                     break;
                 case TEXT:
                     ins = ".text";
+                    break;
+                case DATA:
+                    ins = ".data";
+                    break;
+                case END:
+                    ins = ".end";
                     break;
             }
             std::string opr;
@@ -700,14 +707,13 @@ namespace Instruction {
 
         LoadInstruction(Operands::Register targetReg, Operands::Label label) : label(std::move(label)), destIsLabel(true) {
             LoadSaveProto::target = std::move(targetReg);
+            bitSize = bit_DEF;
         }
 
-        LoadInstruction(Operands::Register targetReg, uint32_t immVal) {
+        LoadInstruction(Operands::Register targetReg, int immVal) {
             destIsLabel = true;
             LoadSaveProto::target = std::move(targetReg);
-            std::stringstream ss;
-            ss << std::hex << immVal;
-            label = "=0x" + ss.str();
+            label = "=" + std::to_string(immVal);
             bitSize = bit_DEF;
         }
 

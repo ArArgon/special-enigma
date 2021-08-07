@@ -196,6 +196,8 @@ namespace Backend::RegisterAllocation {
         void simplify() {
             var_t node = simplifyWorklist.front();
             simplifyWorklist.pop_front();
+            if (node == nullptr)
+                return;
             selectStack.push_back(node);
             for (auto adj : adjacent(node))
                 decrementDegree(adj);
@@ -360,6 +362,10 @@ namespace Backend::RegisterAllocation {
                 }
             }
             spillWorklist.erase(toSpill);
+            if (toSpill == nullptr) {
+                spillWorklist.clear();
+                return;
+            }
             simplifyWorklist.push_back(toSpill);
             freezeMoves(toSpill);
         }
@@ -457,29 +463,30 @@ namespace Backend::RegisterAllocation {
                     auto& ops = it->statement->getRefOps();
                     auto stmtType = it->statement->getStmtType();
                     auto afterIt = it;
-                    for (auto& useVar : it->use) {
+                    auto itUse = it->use;
+                    for (auto& useVar : itUse) {
                         if (isAllocated(useVar)) {
                             size_t offset = baseType::stackScheme->getVariablePosition(useVar);
                             if (it->def.count(useVar)) {
                                 IntermediateRepresentation::IROperand tmpVar {
                                     IntermediateRepresentation::i32, "tmp_" + std::to_string(baseType::spilledCount++) + "_" + useVar.getVarName()
                                 };
+                                // replace usage
+                                it->replaceUse(useVar, tmpVar);
+                                it->replaceDef(useVar, tmpVar);
+
                                 // insert before
                                 // stk_load     %xxx#<var>, %off
                                 Flow::BasicBlock::BBStatement tmpStmt;
-                                auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, useVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                                auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, tmpVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
                                 tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                                 it = ins.insert(it, tmpStmt) + 1;
 
                                 // insert after
                                 // stk_str      %xxx#<var>, %off
-                                load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, useVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                                load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, tmpVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
                                 tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                                 afterIt = ins.insert(afterIt + 1, tmpStmt);
-
-                                // replace usage
-                                it->replaceUse(useVar, tmpVar);
-                                it->replaceDef(useVar, tmpVar);
                                 spillTemp.insert(getVar(tmpVar));
                             } else {
                                 if (stmtType == IntermediateRepresentation::MOV && ops[0] == useVar && isAllocated(ops[1])) {
@@ -502,19 +509,21 @@ namespace Backend::RegisterAllocation {
                                         IntermediateRepresentation::i32, "tmp_" + std::to_string(baseType::spilledCount++) + "_" + useVar.getVarName()
                                     };
 
+                                    // replace
+                                    it->replaceUse(useVar, tmpVar);
+
                                     // insert before
                                     // stk_load     %tmp_xxx_<var>, %off
                                     Flow::BasicBlock::BBStatement tmpStmt;
-                                    auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, useVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                                    auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, tmpVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
                                     tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                                     it = ins.insert(it, tmpStmt) + 1;
-
-                                    it->replaceUse(useVar, tmpVar);
                                 }
                             }
                         }
                     }
-                    for (auto& defVar : it->def) {
+                    auto itDef = it->def;
+                    for (auto& defVar : itDef) {
                         if (isAllocated(defVar)) {
                             auto offset = baseType::stackScheme->getVariablePosition(defVar);
                             if (stmtType == IntermediateRepresentation::MOV && !isAllocated(ops[1])) {
@@ -531,17 +540,18 @@ namespace Backend::RegisterAllocation {
                                     IntermediateRepresentation::i32, "tmp_" + std::to_string(baseType::spilledCount++) + "_" + defVar.getVarName()
                                 };
 
+                                it->replaceDef(defVar, tmpVar);
+
                                 // insert after
                                 /*
                                  * stk_str      %dest,  %off
                                  * */
                                 Flow::BasicBlock::BBStatement tmpStmt;
-                                auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, defVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
+                                auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, tmpVar, IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, offset));
                                 tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                                 afterIt = ins.insert(afterIt + 1, tmpStmt);
 
                                 spillTemp.insert(getVar(defVar));
-                                it->replaceDef(defVar, tmpVar);
                             }
                         }
                     }
@@ -585,7 +595,10 @@ namespace Backend::RegisterAllocation {
                     if (ops[0].getIrOpType() == IntermediateRepresentation::Var) {
                         var = getVar(ops[0]);
                         preColoured.insert(var);
-                        var->colour = 0;
+                        if (ops[1].getStrValue() != "__aeabi_idivmod")
+                            var->colour = 0;
+                        else
+                            var->colour = 1;
                     }
                     for (int i = 2; i < std::min(6, opsCount); i++) {
                         var = getVar(ops[i]);
@@ -606,6 +619,16 @@ namespace Backend::RegisterAllocation {
             }
         }
 
+        void saveFunction() {
+            std::vector<IntermediateRepresentation::Statement> stmts;
+            for (auto &bb : basicBlocks) {
+                for (auto &ins : bb->statements) {
+                    stmts.push_back(*ins.statement);
+                }
+            }
+            baseType::sourceFunc->setStatements(stmts);
+        }
+
     public:
 
         ColourAllocatorRewrite(Util::StackScheme* stack, IntermediateRepresentation::Function* func)  :
@@ -622,6 +645,7 @@ namespace Backend::RegisterAllocation {
 //                std::cout << "\t" << node.first.toString() << ": " << node.second << std::endl;
 
             doFunctionScan();
+            saveFunction();
             if (isDebug)
                 std::cerr << "toVReg Count: " << toVReg.size() << std::endl << "";
             for (auto var : toVReg) {

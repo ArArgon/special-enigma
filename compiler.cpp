@@ -9,6 +9,7 @@
 #include "RegisterAllocationRefactor.h"
 
 bool isDebug;
+int optLevel;
 
 void runner(const IntermediateRepresentation::IRProgram& irProgram, std::ostream& os) {
     auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocatorRewrite, Backend::Translator::availableRegister>(irProgram);
@@ -39,7 +40,6 @@ int main(int argc, char *argv[]) {
     std::vector<std::string> args { argv + 1, argv + argc };
 
     std::string asmOut, sourceIn;
-    int optLevel = 0;
     bool outputASM = false;
     for (auto it = args.begin(); it != args.end(); it++) {
         if ((*it)[0] == '-') {

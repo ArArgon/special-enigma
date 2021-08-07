@@ -10,6 +10,9 @@ using namespace Instruction;
 using namespace Instruction::Operands;
 using namespace Instruction::Utilities::Abbr;
 
+bool isDebug = true;
+int optLevel = 2;
+
 void testASM() {
     std::cout << "Hello, World!" << std::endl;
     Instruction::Operands::RegisterList list;

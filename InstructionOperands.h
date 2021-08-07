@@ -183,9 +183,9 @@ namespace Instruction::Operands {
     };
 
     class LoadSaveOperand : public Operand {
-        Register reg;
+        Register reg, offReg;
         int64_t offset;
-        bool addrAll;
+        bool addrAll, isOffReg = false;
 
     public:
         LoadSaveOperand() = default;
@@ -193,18 +193,25 @@ namespace Instruction::Operands {
         LoadSaveOperand(Register reg, int64_t offset, bool addrAll) : reg(std::move(reg)), offset(offset),
                                                                              addrAll(addrAll) { }
 
+        LoadSaveOperand(const Register &reg, const Register &offReg, bool addrAll) : reg(reg), offReg(offReg),
+                                                                                     addrAll(addrAll), isOffReg(true) { }
+
         LoadSaveOperand(Register reg) : reg(std::move(reg)), offset(0), addrAll(true) { }
 
         std::string toASM() const override {
             std::string ans = "[" + reg.toASM();
             if (addrAll) {
-                if (offset)
+                if (offset && !isOffReg)
                     ans += ", #" + std::to_string(offset);
+                if (isOffReg)
+                    ans += ", " + offReg.toASM();
                 ans += "]";
             } else {
                 ans += "]";
-                if (offset)
+                if (offset && !isOffReg)
                     ans += ", #" + std::to_string(offset);
+                if (isOffReg)
+                    ans += ", " + offReg.toASM();
             }
             return ans;
         }
