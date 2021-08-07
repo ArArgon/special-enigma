@@ -115,9 +115,10 @@ void pri_var(AST* a, std::string type, bool isconst, bool isglobal)
             AST* temp = a->left;
             std::string name = temp->content;
             temp = a->right;
+            IntermediateRepresentation::IROperand ops_value = pri_const_var_exp(temp, isglobal);
             int value;
-            if(temp->name == "CONSTANT")
-                value = temp->value;
+            if(ops_value.getIrOpType() == IntermediateRepresentation::ImmVal)
+                value = ops_value.getValue();
             else
                 std::cout << "error at global var init" << std::endl;
             //std::cout << name << " " << value << std::endl; 
@@ -229,7 +230,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                 }
                 else
                 {
-                    IntermediateRepresentation::IROperand ops_Imm = pri_exp(temp);
+                    IntermediateRepresentation::IROperand ops_Imm = pri_const_var_exp(temp, isglobal);
                     if(ops_Imm.getIrOpType() == IntermediateRepresentation::ImmVal)
                     {
                         int temp_value = ops_Imm.getValue();
@@ -314,7 +315,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                 }
                 else
                 {
-                    IntermediateRepresentation::IROperand ops_Imm = pri_exp(temp);
+                    IntermediateRepresentation::IROperand ops_Imm = pri_const_var_exp(temp, isglobal);
                     if(ops_Imm.getIrOpType() == IntermediateRepresentation::ImmVal)
                     {
                         int temp_value = ops_Imm.getValue();
@@ -374,7 +375,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                 }
                 else
                 {
-                    IntermediateRepresentation::IROperand ops_Imm = pri_exp(temp);
+                    IntermediateRepresentation::IROperand ops_Imm = pri_const_var_exp(temp, isglobal);
                     if(ops_Imm.getIrOpType() == IntermediateRepresentation::ImmVal)
                     {
                         int temp_value = ops_Imm.getValue();
@@ -449,18 +450,14 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                             if(num < onesize) index = index + onesize - num;
                             if(num > onesize) std::cout << "error at l362" << std::endl;
                         }
-                        else if(temp->name == "CONSTANT")
+                        else
                         {
+                            // wait to fix    pri_exp or pri_const_var_exp
                             IntermediateRepresentation::IROperand ops_src = pri_exp(temp);
                             IntermediateRepresentation::IROperand ops_off(IntermediateRepresentation::i32, index*4);
                             IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::STORE, IntermediateRepresentation::i32, ops_src, my_ops0, ops_off);
                             my_function->insertStatement(tempVar);
                             index++;
-                        }
-                        else
-                        {
-                            std::cout << "error at RVal arr init" << std::endl;
-                            exit(-1);
                         }
                     }
                     else
@@ -500,7 +497,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                 }
                 else
                 {
-                    IntermediateRepresentation::IROperand ops_Imm = pri_exp(temp);
+                    IntermediateRepresentation::IROperand ops_Imm = pri_const_var_exp(temp, isglobal);
                     if(ops_Imm.getIrOpType() == IntermediateRepresentation::ImmVal)
                     {
                         int temp_value = ops_Imm.getValue();
@@ -1509,6 +1506,191 @@ IntermediateRepresentation::IROperand pri_return_func(AST* a)
 
     return my_ops0;
 
+}
+
+IntermediateRepresentation::IROperand pri_const_var_exp(AST* a, bool isglobal)
+{
+    //return Imm
+    std::string exp_operator = a->name;
+    IntermediateRepresentation::IROperand ops_l;
+    IntermediateRepresentation::IROperand ops_r;
+    
+    if(a == NULL)
+    {
+        IntermediateRepresentation::IROperand ops_Imm0(IntermediateRepresentation::i32, 0);
+        return ops_Imm0;
+    }
+
+    if(exp_operator == "IDENTIFIER")
+    {
+        int value;
+        if(isglobal)
+        {
+            int i = symTab->findInGlobal(a->content, symbalTableMember::INT);
+            symbalTableMember symTabTemp = symTab->getGlobalVar(i);
+            value = symTabTemp.value.back();
+        }
+        else
+        {
+            symbalTableMember symTabTemp = symTab->find(a->content, symbalTableMember::INT);
+            value = symTabTemp.value.back();
+        }
+        IntermediateRepresentation::IROperand ops_Imm(IntermediateRepresentation::i32, value);
+        return ops_Imm;
+
+    }
+    else if(exp_operator == "CONSTANT")
+    {
+        IntermediateRepresentation::IROperand ops_Imm(IntermediateRepresentation::i32, a->value);
+        return ops_Imm;
+    }
+    else if(exp_operator == "arr_postfix_expression")
+    {
+        std::cout<< "error at pri_const_var_exp" << std::endl; 
+        return pri_arr_postfix_expression(a);
+    }
+    else if(exp_operator == "func_postfix_expression")
+    {
+        std::cout<< "error at pri_const_var_exp" << std::endl; 
+        return pri_return_func(a);
+    }
+    else {
+        
+        if(a->left)
+        {
+            ops_l = pri_const_var_exp(a->left, isglobal);
+        }
+        else
+        {
+            IntermediateRepresentation::IROperand ops_Imm0(IntermediateRepresentation::i32, 0);
+            ops_l = ops_Imm0;
+        }
+        if(a->right)
+        {
+            ops_r = pri_const_var_exp(a->right, isglobal);
+        }
+        else
+        {
+            IntermediateRepresentation::IROperand ops_Imm0(IntermediateRepresentation::i32, 0);
+            ops_r = ops_Imm0;
+        }
+
+        if(exp_operator == "ADD")
+        {
+            if(ops_l.getValue() == 0 && ops_l.getIrOpType() == IntermediateRepresentation::ImmVal)
+            {
+                return ops_r;
+            }
+            else if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal)
+            {
+                if(ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+                {
+                    int value_l = ops_l.getValue();
+                    int value_r = ops_r.getValue();
+                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l+value_r);
+                    return ops_dest;
+                }
+                else
+                {
+                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ADD, IntermediateRepresentation::i32, ops_dest, ops_r, ops_l);
+                    my_function->insertStatement(tempVar);
+                    return ops_dest;
+                }
+            }
+            else
+            {
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ADD, IntermediateRepresentation::i32, ops_dest, ops_l, ops_r);
+                my_function->insertStatement(tempVar);
+                return ops_dest;
+            }
+        }
+        else if(exp_operator == "SUB")
+        {
+            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal && ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+            {
+                int value_l = ops_l.getValue();
+                int value_r = ops_r.getValue();
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l-value_r);
+                return ops_dest;
+            }
+            else
+            {
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::SUB, IntermediateRepresentation::i32, ops_dest, ops_l, ops_r);
+                my_function->insertStatement(tempVar);
+                return ops_dest;
+            }
+        }
+        else if(exp_operator == "MUL")
+        {
+            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal)
+            {
+                if(ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+                {
+                    int value_l = ops_l.getValue();
+                    int value_r = ops_r.getValue();
+                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l*value_r);
+                    return ops_dest;
+                }
+                else
+                {
+                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MUL, IntermediateRepresentation::i32, ops_dest, ops_r, ops_l);
+                    my_function->insertStatement(tempVar);
+                    return ops_dest;
+                }
+            }
+            else
+            {
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MUL, IntermediateRepresentation::i32, ops_dest, ops_l, ops_r);
+                my_function->insertStatement(tempVar);
+                return ops_dest;
+            }
+        }
+        else if(exp_operator == "DIV")
+        {
+            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal && ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+            {
+                int value_l = ops_l.getValue();
+                int value_r = ops_r.getValue();
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l/value_r);
+                return ops_dest;
+            }
+            else
+            {
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::DIV, IntermediateRepresentation::i32, ops_dest, ops_l, ops_r);
+                my_function->insertStatement(tempVar);
+                return ops_dest;
+            }
+        }
+        else if(exp_operator == "MOD")
+        {
+            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal && ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+            {
+                int value_l = ops_l.getValue();
+                int value_r = ops_r.getValue();
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l%value_r);
+                return ops_dest;
+            }
+            else
+            {
+                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MOD, IntermediateRepresentation::i32, ops_dest, ops_l, ops_r);
+                my_function->insertStatement(tempVar);
+                return ops_dest;
+            }
+        }
+        else
+        {
+            std::cout<< "error at pri_const_var_exp" << std::endl; 
+            IntermediateRepresentation::IROperand ops_0(IntermediateRepresentation::i32, 0);
+            return ops_0;
+        }
+    }    
 }
 
 IntermediateRepresentation::IROperand pri_exp(AST* a)
