@@ -1667,7 +1667,7 @@ IntermediateRepresentation::IROperand pri_arr_postfix_expression(AST* a)
                 {
                     int value1 = ops_temp0.getValue();
                     int value2 = ops_temp2.getValue();
-                    IntermediateRepresentation::IROperand ops_num(IntermediateRepresentation::i32, value1*value2);
+                    IntermediateRepresentation::IROperand ops_num(IntermediateRepresentation::i32, value1+value2);
                     ops_temp0 = ops_num;
                 }
                 else
