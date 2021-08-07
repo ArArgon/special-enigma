@@ -942,7 +942,7 @@ void pri_single_statement_block(AST* a)
 
 IntermediateRepresentation::IROperand pri_cond(AST* a)
 {
-    //OR_OP || ;AND_OP && ;EQ_OP == NE_OP != ;LT < GT > LE_OP <= GE_OP >= ;NOT ! ADD SUB
+    //OR_OP || ;AND_OP && ;EQ_OP == NE_OP != ;LT < GT > LE_OP <= GE_OP >= ;NOT ! ADD SUB * / %
     std::string cond_operator = a->name;
     IntermediateRepresentation::IROperand ops_l;
     IntermediateRepresentation::IROperand ops_r;
@@ -990,13 +990,22 @@ IntermediateRepresentation::IROperand pri_cond(AST* a)
 
         if(cond_operator == "LT")
         {
-            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal && ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal)
             {
-
-                int value_l = ops_l.getValue();
-                int value_r = ops_r.getValue();
-                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l<value_r);
-                return ops_dest;
+                if(ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+                {
+                    int value_l = ops_l.getValue();
+                    int value_r = ops_r.getValue();
+                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l<value_r);
+                    return ops_dest;
+                }
+                else
+                {
+                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::CMP_SGT, IntermediateRepresentation::i32, ops_dest, ops_r, ops_l);
+                    my_function->insertStatement(tempVar);
+                    return ops_dest;
+                }
             }
             else
             {
@@ -1008,12 +1017,22 @@ IntermediateRepresentation::IROperand pri_cond(AST* a)
         }
         else if(cond_operator == "GT")
         {
-            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal && ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal)
             {
-                int value_l = ops_l.getValue();
-                int value_r = ops_r.getValue();
-                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l>value_r);
-                return ops_dest;
+                if(ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+                {
+                    int value_l = ops_l.getValue();
+                    int value_r = ops_r.getValue();
+                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l>value_r);
+                    return ops_dest;
+                }
+                else
+                {
+                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::CMP_SLT, IntermediateRepresentation::i32, ops_dest, ops_r, ops_l);
+                    my_function->insertStatement(tempVar);
+                    return ops_dest;
+                }
             }
             else
             {
@@ -1025,12 +1044,22 @@ IntermediateRepresentation::IROperand pri_cond(AST* a)
         }
         else if(cond_operator == "LE_OP")
         {
-            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal && ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal)
             {
-                int value_l = ops_l.getValue();
-                int value_r = ops_r.getValue();
-                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l<=value_r);
-                return ops_dest;
+                if(ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+                {
+                    int value_l = ops_l.getValue();
+                    int value_r = ops_r.getValue();
+                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l<=value_r);
+                    return ops_dest;
+                }
+                else
+                {
+                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::CMP_SGE, IntermediateRepresentation::i32, ops_dest, ops_r, ops_l);
+                    my_function->insertStatement(tempVar);
+                    return ops_dest;
+                }
             }
             else
             {
@@ -1042,12 +1071,22 @@ IntermediateRepresentation::IROperand pri_cond(AST* a)
         }
         else if(cond_operator == "GE_OP")
         {
-            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal && ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+            if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal)
             {
+                if(ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
+                {
                     int value_l = ops_l.getValue();
                     int value_r = ops_r.getValue();
                     IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l>=value_r);
                     return ops_dest;
+                }
+                else
+                {
+                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::CMP_SLE, IntermediateRepresentation::i32, ops_dest, ops_r, ops_l);
+                    my_function->insertStatement(tempVar);
+                    return ops_dest;
+                }
             }
             else
             {
