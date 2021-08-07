@@ -3,6 +3,7 @@
 #include "IRTypes.h"
 #include "IRTranslator.h"
 #include "RegisterAllocationRefactor.h"
+#include "NoRegisterAllocation.h"
 
 using Instruction::ARMv7_Register;
 using Instruction::BranchInstruction;
@@ -43,7 +44,7 @@ void testASM() {
 }
 
 void runner(const IntermediateRepresentation::IRProgram& irProgram) {
-    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocatorRewrite, Backend::Translator::availableRegister>(irProgram);
+    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::NoRegisterAllocation, Backend::Translator::availableRegister>(irProgram);
     try {
         auto ins = translator.doTranslation();
         puts("");

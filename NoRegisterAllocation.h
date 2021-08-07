@@ -94,7 +94,7 @@ namespace Backend::RegisterAllocation {
 
                     }
 
-                    for (auto &defVar : it->def) {
+                    for (auto& defVar : it->def) {
                         if (preColourScheme.count(defVar)) {
                             registerSet.erase(preColourScheme[defVar]);
                             continue;
@@ -102,7 +102,9 @@ namespace Backend::RegisterAllocation {
                         size_t offset = baseType::stackScheme->getVariablePosition(defVar);
 
                         auto tmpRegister = defVar;
+                        std::cout << "Hello1" << std::endl;
                         tmpRegister.setVarName("r" + std::to_string(*registerSet.begin()));
+                        std::cout << "Hello2" << std::endl;
 
                         // insert before
                         Flow::BasicBlock::BBStatement tmpStmt;
@@ -113,8 +115,9 @@ namespace Backend::RegisterAllocation {
                                                                                      IntermediateRepresentation::i32,
                                                                                      offset));
                         tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
+                        std::cout << "Hello3" << std::endl;
                         it = ins.insert(it, tmpStmt) + 1;
-
+                        std::cout << "Hello4" << std::endl;
                         // insert after
                         load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR,
                                                                         IntermediateRepresentation::i32, tmpRegister,
@@ -122,9 +125,11 @@ namespace Backend::RegisterAllocation {
                                                                                 IntermediateRepresentation::i32,
                                                                                 offset));
                         tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
+                        std::cout << "Hello5" << std::endl;
                         afterIt = ins.insert(afterIt + 1, tmpStmt);
 
                     }
+                    it = afterIt;
                 }
             }
         }
@@ -174,7 +179,13 @@ namespace Backend::RegisterAllocation {
                     }
                 }
             }
+
+            doFunctionScan();
+            saveFunction();
+
         };
+
+        ~NoRegisterAllocation() = default;
     };
 }
 
