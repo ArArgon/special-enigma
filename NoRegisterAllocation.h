@@ -68,7 +68,7 @@ namespace Backend::RegisterAllocation {
                 registerSet.insert(3);
             }
 
-            std::map<var_t, int> varBind;
+            std::map<var_t, int> varBind, callerStkOff;
             std::set<var_t> bindSet;
             for (auto &bb : basicBlocks) {
                 auto &ins = bb->statements;
@@ -109,6 +109,7 @@ namespace Backend::RegisterAllocation {
                             if (pos > 3 || pos < 0) {
                                 // bind to -1
                                 varBind[param] = -1;
+                                callerStkOff[param] = pos;
                             } else {
                                 varBind[param] = pos;
                                 registerSet.erase(pos);
@@ -199,7 +200,7 @@ namespace Backend::RegisterAllocation {
 
                         // push stk for caller
                         if (varBind[defVar] == -1) {
-                            offset = defVar.getValue();
+                            offset = callerStkOff[defVar] + 1;
                             load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR,
                                                                             IntermediateRepresentation::i32, tmpRegister,
                                                                             immOpr(-offset), var_t());

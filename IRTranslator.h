@@ -371,7 +371,7 @@ namespace Backend::Translator {
                             // stk_str      %replaceList[i], #paramOpr[i].getValue()
                             it = stmts.insert(it, {
                                 IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, replaceList[i],
-                                IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, paramOpr[i].getValue())
+                                IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, paramOpr[i - 2].getValue())
                             }) + 1;
                         }
                     }
@@ -758,7 +758,7 @@ namespace Backend::Translator {
                                 auto stk_pointer = fp;
                                 int imm = ops[1].getValue();
                                 if (imm < 0) {
-                                    imm = 4 * pushSize + (-imm - 5) * 4;
+                                    imm = -(4 * pushSize - (4 + imm) * 4);
                                 }
                                 imm = -imm;
                                 if (immNeedProc(imm, -12))
