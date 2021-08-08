@@ -383,7 +383,6 @@ namespace Backend::Translator {
                             tmpOpr.setVarName(funcName + "_arg_" + ops[i].getVarName());
                         else
                             tmpOpr.setVarName(funcName + "_arg_imm_" + std::to_string(i));
-//                        replaceList.push_back(tmpOpr);
                         // mov      %<funcName>_arg_%x, %x
                         it = stmts.insert(it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpOpr, ops[i] } ) + 1;
                     }
@@ -757,13 +756,15 @@ namespace Backend::Translator {
                                 ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, mapping.at(ops[1]), true));
                             } else {
                                 auto stk_pointer = fp;
-                                if (ops.size() == 3)
-                                    stk_pointer = sp; // TODO
                                 int imm = ops[1].getValue();
+                                if (imm < 0) {
+                                    imm = 4 * pushSize + (-imm - 5) * 4;
+                                }
+                                imm = -imm;
                                 if (immNeedProc(imm, -12))
-                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, loadImm(imm), true));
+                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(stk_pointer, loadImm(imm), true));
                                 else
-                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, imm,true));
+                                    ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(stk_pointer, imm,true));
                             }
                         }
                             break;
@@ -774,19 +775,22 @@ namespace Backend::Translator {
                              * str          %src, [fp, #off]
                              * */
 //#warning "Imm not implemented"
-                            if (ops.size() == 2) {
-                                if (ops[1].getIrOpType() == IntermediateRepresentation::Var) {
-                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, mapping.at(ops[1]),true));
-                                } else {
-                                    int imm = ops[1].getValue();
-                                    if (immNeedProc(imm, -12))
-                                        ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, loadImm(imm),true));
-                                    else
-                                        ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, imm,true));
-                                }
+
+                            if (ops[1].getIrOpType() == IntermediateRepresentation::Var) {
+                                ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, mapping.at(ops[1]),true));
                             } else {
-                                // that's for function
-                                // TODO: function stk_str
+                                int imm = ops[1].getValue();
+                                auto stk_pointer = fp;
+                                if (ops.size() > 2) {
+                                    // caller str
+                                    stk_pointer = sp;
+                                    imm = -4 * imm;
+                                }
+                                imm = -imm;
+                                if (immNeedProc(imm, -12))
+                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(stk_pointer, loadImm(imm),true));
+                                else
+                                    ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(stk_pointer, imm,true));
                             }
                         }
                             break;

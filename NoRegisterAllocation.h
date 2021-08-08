@@ -131,7 +131,7 @@ namespace Backend::RegisterAllocation {
                                 // insert before
                                 auto tmpReg = *registerSet.begin();
                                 // unable to determine offset, use a placeholder to mark
-                                insertBefore({ IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, regToOpr(tmpReg), immOpr(pos), var_t() });
+                                insertBefore({ IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, regToOpr(tmpReg), immOpr(-pos) });
                                 insertBefore({ IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, regToOpr(tmpReg), immOpr(getStackPos(param)) });
                             }
                         }
@@ -159,7 +159,7 @@ namespace Backend::RegisterAllocation {
 
                         // load data
                         // insert after
-                        if (it->statement->getDataType() != IntermediateRepresentation::t_void) {
+                        if (it->statement->getOps()[0].getIrDataType() != IntermediateRepresentation::t_void) {
                             size_t resReg = (callFunc != "__aeabi_idivmod") ? 0 : 1;
                             insertAfter({ IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, regToOpr(resReg), immOpr(getStackPos(dest)) });
                         }
@@ -202,7 +202,7 @@ namespace Backend::RegisterAllocation {
                             offset = defVar.getValue();
                             load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR,
                                                                             IntermediateRepresentation::i32, tmpRegister,
-                                                                            immOpr((-offset - 1) * 4));
+                                                                            immOpr(-offset), var_t());
                             insertAfter(load_st);
                             std::cout << "Insert after def for caller: " << load_st.toString() << std::endl;
                         }
