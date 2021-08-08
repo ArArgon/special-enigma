@@ -214,7 +214,6 @@ namespace Backend::Flow {
             }
                 break;
             case IntermediateRepresentation::STORE:
-            case IntermediateRepresentation::STK_STR:
             case IntermediateRepresentation::ADD:
             case IntermediateRepresentation::MUL:
             case IntermediateRepresentation::DIV:
@@ -238,6 +237,13 @@ namespace Backend::Flow {
                  * ins %dest, %opr1, ...
                  * */
                 for (int i = 1; i < opsCount; i++)
+                    if (ops[i] == oldVar)
+                        ops[i] = newVar;
+            }
+                break;
+            case IntermediateRepresentation::STK_STR: {
+                // stk_str      %src, %pos
+                for (int i = 0; i < opsCount; i++)
                     if (ops[i] == oldVar)
                         ops[i] = newVar;
             }

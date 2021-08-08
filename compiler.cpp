@@ -6,13 +6,14 @@
 #include "eliPhi.h"
 #include "IRTranslator.h"
 #include "RegisterAllocation.h"
+#include "NoRegisterAllocation.h"
 #include "RegisterAllocationRefactor.h"
 
 bool isDebug;
 int optLevel;
 
 void runner(const IntermediateRepresentation::IRProgram& irProgram, std::ostream& os) {
-    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::ColourAllocatorRewrite, Backend::Translator::availableRegister>(irProgram);
+    auto &&translator = Backend::Translator::Translator<Backend::RegisterAllocation::NoRegisterAllocation, Backend::Translator::availableRegister>(irProgram);
     if (!os.good()) {
         std::cerr << "Fatal error: output stream is not prepared." << std::endl;
         exit(-1);

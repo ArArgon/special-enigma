@@ -18,8 +18,6 @@ namespace Backend::RegisterAllocation {
 
         std::shared_ptr<Flow::Flow> flowAnalyzer = nullptr;
         std::vector<bb_t> basicBlocks;
-        std::unordered_map<var_t, size_t> preColourScheme;
-        std::unordered_set<var_t> preColoured;
 
         void saveFunction() {
             std::vector<IntermediateRepresentation::Statement> stmts;
@@ -32,104 +30,215 @@ namespace Backend::RegisterAllocation {
         }
 
         void doFunctionScan() override {
-            while (true) {
+            // load basic blocks and compute def, use information
+            flowAnalyzer = std::make_shared<Flow::Flow>(Flow::Flow { baseType::sourceFunc });
+            basicBlocks = flowAnalyzer->getBasicBlocks();
 
-                flowAnalyzer = std::make_shared<Flow::Flow>(Flow::Flow { baseType::sourceFunc });
-                basicBlocks = flowAnalyzer->getBasicBlocks();
-
-                rewriteFunction();
-            }
-        }
-
-        void rewriteFunction() {
-
+            // allocate stack space for every variable
             for (auto &bb : basicBlocks) {
                 auto &ins = bb->statements;
-                for (auto it = ins.begin(); it != ins.end(); it++) {
-                    for (auto &useVar : it->use) {
-                        baseType::stackScheme->allocate(useVar);
-                    }
-                    for (auto &defVar : it->def) {
-                        baseType::stackScheme->allocate(defVar);
-                    }
+                for (auto & in : ins) {
+                    auto var_set = in.use;
+                    Util::set_union_to(var_set, in.def);
+                    for (const auto &var : var_set)
+                        baseType::stackScheme->allocate(var);
                 }
             }
 
+            // save allocation
+
+            for (int i = 0; i <= 5; i++) {
+                var_t regI { IntermediateRepresentation::i32, "r" + std::to_string(i) };
+                baseType::allocation[regI] = i;
+                baseType::variables.insert(regI);
+            }
+
+            // rewrite function
+            rewriteFunction();
+        }
+
+        void rewriteFunction() {
+            // function-wide available registers
+            // std::set is used to keep order.
+            std::set<size_t> registerSet = { 4, 5 };
+            if (baseType::sourceFunc->getParameters().empty()) {
+                registerSet.insert(0);
+                registerSet.insert(1);
+                registerSet.insert(2);
+                registerSet.insert(3);
+            }
+
+            std::map<var_t, int> varBind;
+            std::set<var_t> bindSet;
             for (auto &bb : basicBlocks) {
                 auto &ins = bb->statements;
                 for (auto it = ins.begin(); it != ins.end(); it++) {
                     if (!it->init)
                         continue;
-                    std::unordered_set<size_t> registerSet = {0, 1, 2, 3};
-                    auto afterIt = it;
-                    for (auto &useVar : it->use) {
-                        if (preColourScheme.count(useVar)) {
-                            registerSet.erase(preColourScheme[useVar]);
-                            continue;
+                    auto regToOpr = [] (size_t num) {
+                        return var_t { IntermediateRepresentation::i32, "r" + std::to_string(num) };
+                    };
+                    auto immOpr = [] (int num) {
+                        return var_t {IntermediateRepresentation::i32, num };
+                    };
+                    auto getStackPos = [&] (const var_t& opr) {
+                        return baseType::stackScheme->getVariablePosition(opr);
+                    };
+                    auto insertBefore = [&] (const IntermediateRepresentation::Statement& stmt) {
+                        Flow::BasicBlock::BBStatement tmpBB;
+                        tmpBB.statement = new IntermediateRepresentation::Statement(stmt);
+                        it = ins.insert(it, tmpBB) + 1;
+                    };
+                    auto insertAfter = [&] (const IntermediateRepresentation::Statement& stmt) {
+                        Flow::BasicBlock::BBStatement tmpBB;
+                        tmpBB.statement = new IntermediateRepresentation::Statement(stmt);
+                        it = ins.insert(it + 1, tmpBB) - 1;
+                    };
+                    if (it->statement->getStmtType() == IntermediateRepresentation::PARAM) {
+                        auto param = it->statement->getOps()[0];
+                        int pos = param.getValue();
+                        if (it->statement->getOps().size() == 1) {
+                            // Caller param:
+                            // param        [%paramName, #pos]
+                            // TODO: freeze & bind
+                            /*
+                             * for var in register: bind to its corresponding register
+                             * for var in stack:    bind to -1
+                             * */
+                            bindSet.insert(param);
+                            if (pos > 3 || pos < 0) {
+                                // bind to -1
+                                varBind[param] = -1;
+                            } else {
+                                varBind[param] = pos;
+                                registerSet.erase(pos);
+                            }
+                        } else {
+                            // Callee param:
+                            // param        [%paramName, #pos], <placeholder>
+                            // unfreeze     r#pos
+                            if (pos < 4) {
+                                // in register
+                                // insert before
+                                // stk_str      r#pos, #stk_pos
+                                insertBefore({ IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, regToOpr(pos), immOpr(getStackPos(param)) });
+                                registerSet.insert(pos);
+                            } else {
+                                // in stack
+                                // stk_load     r<tmp>, #param_stk_pos, TODO: special placeholder indicate fp
+                                // stk_str      r<tmp>, #stk_pos
+
+                                // insert before
+                                auto tmpReg = *registerSet.begin();
+                                // unable to determine offset, use a placeholder to mark
+                                insertBefore({ IntermediateRepresentation::STK_LOAD, IntermediateRepresentation::i32, regToOpr(tmpReg), immOpr(pos), var_t() });
+                                insertBefore({ IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, regToOpr(tmpReg), immOpr(getStackPos(param)) });
+                            }
                         }
-                        size_t offset = baseType::stackScheme->getVariablePosition(useVar);
-
-                        auto tmpRegister = useVar;
-                        tmpRegister.setVarName("r" + std::to_string(*registerSet.begin()));
-
-                        // insert before
-                        Flow::BasicBlock::BBStatement tmpStmt;
-                        auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD,
-                                                                             IntermediateRepresentation::i32,
-                                                                             tmpRegister,
-                                                                             IntermediateRepresentation::IROperand(
-                                                                                     IntermediateRepresentation::i32,
-                                                                                     offset));
-                        tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
-                        it = ins.insert(it, tmpStmt) + 1;
-
-                        // insert after
-                        load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR,
-                                                                        IntermediateRepresentation::i32, tmpRegister,
-                                                                        IntermediateRepresentation::IROperand(
-                                                                                IntermediateRepresentation::i32,
-                                                                                offset));
-                        tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
-                        afterIt = ins.insert(afterIt + 1, tmpStmt);
-
+                        continue;
                     }
+                    if (it->statement->getStmtType() == IntermediateRepresentation::CALL) {
+                        /*
+                         * unfreeze r1, r2, r3 ( if it is not mod func )
+                         * unfreeze r0, r2, r3 ( if it is mod func )
+                         *
+                         * store dest
+                         * unfreeze r0, r1
+                         * */
+                        std::string callFunc = it->statement->getOps()[1].getStrValue();
+                        var_t dest = it->statement->getOps()[0];
 
-                    for (auto& defVar : it->def) {
-                        if (preColourScheme.count(defVar)) {
-                            registerSet.erase(preColourScheme[defVar]);
-                            continue;
+
+                        // unbind
+                        bindSet.clear();
+                        varBind.clear();
+
+                        // unfreeze
+                        std::set<size_t> tmpSet = { 2, 3 };
+                        Util::set_union_to(registerSet, tmpSet);
+
+                        // load data
+                        // insert after
+                        if (it->statement->getDataType() != IntermediateRepresentation::t_void) {
+                            size_t resReg = (callFunc != "__aeabi_idivmod") ? 0 : 1;
+                            insertAfter({ IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, regToOpr(resReg), immOpr(getStackPos(dest)) });
                         }
+                        registerSet.insert(0);
+                        registerSet.insert(1);
+                        continue;
+                    }
+                    std::cout << "Modify statement: " << it->statement->toString() << std::endl;
+                    auto itDef = it->def, itUse = it->use;
+                    std::set<size_t> usedReg;
+                    for (auto& defVar : itDef) {
                         size_t offset = baseType::stackScheme->getVariablePosition(defVar);
 
                         auto tmpRegister = defVar;
-                        std::cout << "Hello1" << std::endl;
-                        tmpRegister.setVarName("r" + std::to_string(*registerSet.begin()));
-                        std::cout << "Hello2" << std::endl;
+                        if (bindSet.count(tmpRegister) && varBind.at(tmpRegister) != -1)
+                            tmpRegister.setVarName("r" + std::to_string(varBind[tmpRegister]));
+                        else {
+                            int reg = *registerSet.begin();
+                            tmpRegister.setVarName("r" + std::to_string(reg));
+                            registerSet.erase(reg);
+                            usedReg.insert(reg);
+                        }
+                        tmpRegister.setIrType(IntermediateRepresentation::i32);
 
-                        // insert before
-                        Flow::BasicBlock::BBStatement tmpStmt;
-                        auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD,
-                                                                             IntermediateRepresentation::i32,
-                                                                             tmpRegister,
-                                                                             IntermediateRepresentation::IROperand(
-                                                                                     IntermediateRepresentation::i32,
-                                                                                     offset));
-                        tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
-                        std::cout << "Hello3" << std::endl;
-                        it = ins.insert(it, tmpStmt) + 1;
-                        std::cout << "Hello4" << std::endl;
+                        // replace variable
+                        it->replaceDef(defVar, tmpRegister);
+                        std::cout << "Replace def: " << it->statement->toString() << std::endl;
+
+                        IntermediateRepresentation::Statement load_st;
+
                         // insert after
                         load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR,
                                                                         IntermediateRepresentation::i32, tmpRegister,
-                                                                        IntermediateRepresentation::IROperand(
-                                                                                IntermediateRepresentation::i32,
-                                                                                offset));
-                        tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
-                        std::cout << "Hello5" << std::endl;
-                        afterIt = ins.insert(afterIt + 1, tmpStmt);
+                                                                        immOpr(offset));
+                        insertAfter(load_st);
+                        std::cout << "Insert after def: " << load_st.toString() << std::endl;
 
+                        // push stk for caller
+                        if (varBind[defVar] == -1) {
+                            offset = defVar.getValue();
+                            load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_STR,
+                                                                            IntermediateRepresentation::i32, tmpRegister,
+                                                                            immOpr((-offset - 1) * 4));
+                            insertAfter(load_st);
+                            std::cout << "Insert after def for caller: " << load_st.toString() << std::endl;
+                        }
                     }
-                    it = afterIt;
+                    for (auto &useVar : itUse) {
+                        size_t offset = baseType::stackScheme->getVariablePosition(useVar);
+
+                        auto tmpRegister = useVar;
+                        if (bindSet.count(tmpRegister) && varBind.at(tmpRegister) != -1)
+                            tmpRegister.setVarName("r" + std::to_string(varBind[tmpRegister]));
+                        else {
+                            int reg = *registerSet.begin();
+                            tmpRegister.setVarName("r" + std::to_string(reg));
+                            registerSet.erase(reg);
+                            usedReg.insert(reg);
+                        }
+                        tmpRegister.setIrType(IntermediateRepresentation::i32);
+
+                        // replace use
+                        it->replaceUse(useVar, tmpRegister);
+                        std::cout << "Replace use: " << it->statement->toString() << std::endl;
+
+                        // insert before
+                        if (!itDef.count(useVar)) {
+                            Flow::BasicBlock::BBStatement tmpStmt;
+                            auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD,
+                                                                                 IntermediateRepresentation::i32,
+                                                                                 tmpRegister,
+                                                                                 immOpr(offset));
+                            tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
+                            it = ins.insert(it, tmpStmt) + 1;
+                            std::cout << "Insert before use: " << tmpStmt.statement->toString() << std::endl;
+                        }
+                    }
+
+                    Util::set_union_to(registerSet, usedReg);
                 }
             }
         }
@@ -137,52 +246,11 @@ namespace Backend::RegisterAllocation {
     public:
         NoRegisterAllocation(Util::StackScheme * stack, IntermediateRepresentation::Function * func) :
             baseType::RegisterAllocator(stack, func) {
-            // load pre-colour
-            //
-            /*
-             * call %dest, func, %1, %2, %3, %4, %5, ..., %N
-             *
-             * %dest is pre-coloured: r0
-             * %1, %2, %3, %4 = r0, r1, r2, r3
-             * */
             auto& stmts = baseType::sourceFunc->getStatements();
             auto& params = baseType::sourceFunc->getParameters();
 
-            // function parameters
-            for (int i = 0; i < std::min(4, (int)params.size()); i++) {
-                preColoured.insert(params[i]);
-                preColourScheme[params[i]] = i;
-            }
-
-            for (auto& stmt : stmts) {
-                auto& ops = stmt.getOps();
-                const int opsCount = static_cast<int>(ops.size());
-                if (stmt.getStmtType() == IntermediateRepresentation::CALL) {
-                    // pre-colour %dest
-                    if (ops[0].getIrOpType() == IntermediateRepresentation::Var) {
-                        preColoured.insert(ops[0]);
-                        preColourScheme[ops[0]] = 0;
-                    }
-                    for (int i = 2; i < std::min(6, opsCount); i++) {
-                        if (ops[i].getIrOpType() == IntermediateRepresentation::Var) {
-                            preColoured.insert(ops[i]);
-                            // op1 -> r0, op2 -> r1, ...
-                            preColourScheme[ops[i]] = i - 2;
-                        }
-                    }
-                }
-                else if (stmt.getStmtType() == IntermediateRepresentation::RETURN) {
-                    if (stmt.getDataType() != IntermediateRepresentation::t_void && ops[0].getIrOpType() == IntermediateRepresentation::Var) {
-                        // return   %xxx
-                        preColoured.insert(ops[0]);
-                        preColourScheme[ops[0]] = 0;
-                    }
-                }
-            }
-
             doFunctionScan();
             saveFunction();
-
         };
 
         ~NoRegisterAllocation() = default;

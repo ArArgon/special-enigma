@@ -139,24 +139,22 @@ namespace Backend::Translator {
             auto params = func.getParameters();
 
             /*
-             * param    [%param_dest, #pos], [%param_dest, #pos], ...
-             * mov      %dest,  %param
+             * param    [%param_xx1, #pos], <placeholder>
+             * mov      %xx1, %param_xx1
+             * param    [%param_xx2, #pos], <placeholder>
+             * mov      %xx2, %param_xx2
              * */
             if (!params.empty()) {
                 int pos = params.size() - 1;
                 auto st_it = stmts.begin();
-                std::vector<IntermediateRepresentation::IROperand> paramTmp;
                 for (auto rit = params.rbegin(); rit != params.rend(); rit++) {
                     auto tmpOpr = *rit;
                     rit->setVarName("param_" + tmpOpr.getVarName());
                     auto param = *rit;
                     param.setValue(pos--);
-                    paramTmp.push_back(param);
+                    st_it = stmts.insert(st_it, { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, param, IntermediateRepresentation::IROperand() }) + 1;
                     st_it = stmts.insert(st_it, { IntermediateRepresentation::MOV, IntermediateRepresentation::i32, tmpOpr, *rit } ) + 1;
                 }
-
-                stmts.insert(stmts.begin(), { IntermediateRepresentation::PARAM, IntermediateRepresentation::i32, paramTmp } );
-
             }
 
             func.setParameters(params);
@@ -345,6 +343,8 @@ namespace Backend::Translator {
                             tmpOpr.setVarName(funcName + "_arg_imm_" + std::to_string(i));
                         if (i >= 6) {
                             tmpOpr.setValue(-(i - 5));
+                        } else {
+                            tmpOpr.setValue(i - 2);
                         }
                         replaceList.push_back(tmpOpr);
                         paramOpr.push_back(tmpOpr);
@@ -354,6 +354,7 @@ namespace Backend::Translator {
                         for (int i = paramCount + 1; i <= 4; i++) {
                             auto tmpOpr = IntermediateRepresentation::IROperand(IntermediateRepresentation::t_void, "");
                             tmpOpr.setVarName(funcName + "_placeholder_" + std::to_string(i - 1));
+                            tmpOpr.setValue(i - 1);
                             replaceList.push_back(tmpOpr);
                             // param        [ %<func>_arg_placeholder_x, null ]
                             paramOpr.push_back(tmpOpr);
@@ -441,7 +442,6 @@ namespace Backend::Translator {
                     default:
                         throw std::runtime_error("Invalid immediate number length: " + std::to_string(immLen));
                 }
-                return false;
             };
 
             auto loadImm = [&] (int imm) {
@@ -756,6 +756,9 @@ namespace Backend::Translator {
                             if (ops[1].getIrOpType() == IntermediateRepresentation::Var) {
                                 ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, mapping.at(ops[1]), true));
                             } else {
+                                auto stk_pointer = fp;
+                                if (ops.size() == 3)
+                                    stk_pointer = sp; // TODO
                                 int imm = ops[1].getValue();
                                 if (immNeedProc(imm, -12))
                                     ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, loadImm(imm), true));
@@ -781,7 +784,6 @@ namespace Backend::Translator {
                                     else
                                         ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(fp, imm,true));
                                 }
-
                             } else {
                                 // that's for function
                                 // TODO: function stk_str
@@ -979,6 +981,11 @@ namespace Backend::Translator {
 //#warning "Imm not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
                                 int imm = ops[2].getValue();
+                                if (imm == 0) {
+                                    if (mapping.at(ops[0]) != mapping.at(ops[1]))
+                                        ins << MoveInstruction(mapping.at(ops[0]), mapping.at(ops[1]));
+                                    break;
+                                }
                                 if (immNeedProc(imm, 8))
                                     ins << ShiftInstruction(LSL, mapping.at(ops[0]), mapping.at(ops[1]), loadImm(imm));
                                 else
@@ -992,6 +999,11 @@ namespace Backend::Translator {
 //#warning "Imm not implemented"
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
                                 int imm = ops[2].getValue();
+                                if (imm == 0) {
+                                    if (mapping.at(ops[0]) != mapping.at(ops[1]))
+                                        ins << MoveInstruction(mapping.at(ops[0]), mapping.at(ops[1]));
+                                    break;
+                                }
                                 if (immNeedProc(imm, 8))
                                     ins << ShiftInstruction(LSR, mapping.at(ops[0]), mapping.at(ops[1]), loadImm(imm));
                                 else
