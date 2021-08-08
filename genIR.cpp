@@ -440,7 +440,16 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                             {
                                 temp = RVal_arr_list_l.top()->right;
                                 RVal_arr_list_l.pop();
-                                IntermediateRepresentation::IROperand ops_src = pri_exp(temp);
+                                IntermediateRepresentation::IROperand ops_src;
+                                if(temp->name == "initializer_list") //error
+                                {
+                                    temp = temp->right;
+                                    ops_src = pri_exp(temp);
+                                }
+                                else
+                                {
+                                    ops_src = pri_exp(temp);
+                                }
                                 IntermediateRepresentation::IROperand ops_off(IntermediateRepresentation::i32, index*4);
                                 IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::STORE, IntermediateRepresentation::i32, ops_src, my_ops0, ops_off);
                                 my_function->insertStatement(tempVar);
@@ -448,7 +457,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                             }
 
                             if(num < onesize) index = index + onesize - num;
-                            if(num > onesize) std::cout << "error at l362" << std::endl;
+                            //if(num > onesize) std::cout << "error at l362" << std::endl;
                         }
                         else
                         {
@@ -1883,7 +1892,7 @@ IntermediateRepresentation::IROperand pri_arr_postfix_expression(AST* a)
     arrName = symTab->find_name(arrName, symbalTableMember::ARRAY);
     int indexNum = tempTabVar.arrayIndex[0];
     int num = 1;
-    IntermediateRepresentation::IROperand ops_temp0;
+    IntermediateRepresentation::IROperand ops_temp0(IntermediateRepresentation::i32, getNewNameLocalVar());
     while(!exp_stack.empty())
     {
         temp = exp_stack.top()->right;
@@ -1926,7 +1935,9 @@ IntermediateRepresentation::IROperand pri_arr_postfix_expression(AST* a)
             
             if(num == 2)
             {
-                ops_temp0 = ops_temp2;
+                //ops_temp0 = ops_temp2;
+                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, ops_temp0, ops_temp2);
+                my_function->insertStatement(tempVar);
             }
             else
             {
@@ -1996,7 +2007,7 @@ void pri_LVal_arr_postfix_expression(AST* LVal, AST* exp)
     arrName = symTab->find_name(arrName, symbalTableMember::ARRAY);
     int indexNum = tempTabVar.arrayIndex[0];
     int num = 1;
-    IntermediateRepresentation::IROperand ops_temp0;
+    IntermediateRepresentation::IROperand ops_temp0(IntermediateRepresentation::i32, getNewNameLocalVar());
     while(!exp_stack.empty())
     {
         temp = exp_stack.top()->right;
@@ -2009,7 +2020,7 @@ void pri_LVal_arr_postfix_expression(AST* LVal, AST* exp)
         }
         else
         {
-            std::cout << indexNum << std::endl;
+            //std::cout << indexNum << std::endl;
             IntermediateRepresentation::IROperand ops_temp2(IntermediateRepresentation::i32, getNewNameLocalVar());
             num++;
             int j = 1;
@@ -2039,11 +2050,13 @@ void pri_LVal_arr_postfix_expression(AST* LVal, AST* exp)
 
             if(num == 2)
             {
-                ops_temp0 = ops_temp2;
+                //ops_temp0 = ops_temp2;
+                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, ops_temp0, ops_temp2);
+                my_function->insertStatement(tempVar);
             }
             else
             {
-                if(ops_temp0.getIrOpType() == IntermediateRepresentation::ImmVal)
+                if(ops_temp0.getIrOpType() == IntermediateRepresentation::ImmVal) //error
                 {
                    if(ops_temp2.getIrOpType() == IntermediateRepresentation::ImmVal)
                     {
