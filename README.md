@@ -1,13 +1,27 @@
 # special-enigma
-The backend (for now) of the compiler from LR(1)
 
-This repository is private temporarily.
+**This project contains unfixed bugs.**
 
-# Specifications
+---
+
+## Description
+
+SiFang (四方) compiler from UESTC.
+
+Developers: [ArArgon](https://github.com/13927), [
+uestc pb](https://github.com/13927), [TrancedYou](https://github.com/TrancedYou), [henry-bugfree](https://github.com/henry-bugfree).
+
+## Specifications
 
 Laguage: C++17
-Dependencies: CMake, Clang (or any compiler supporting C++17)
+Dependencies: CMake, Clang (or any compiler supporting C++17), Bison, Flex
 
+```shell
+cmake ./CMakeLists.txt
+```
+
+or
+
+```shell
 make
-
-./a filename.c
+```

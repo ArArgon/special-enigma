@@ -1,7 +1,7 @@
 CFLAGS = -O0 -g
 
 all: lrparser.tab.cpp lex.yy.cpp ast.cpp genIR.cpp IRTypes.cpp compiler.cpp
-	g++ --std=c++17 -o a $(CFLAGS) compiler.cpp lrparser.tab.cpp lex.yy.cpp ast.cpp genIR.cpp IRTypes.cpp Utilities.cpp Flow.cpp InstructionUtilities.cpp
+	c++ --std=c++17 -o a $(CFLAGS) compiler.cpp lrparser.tab.cpp lex.yy.cpp ast.cpp genIR.cpp IRTypes.cpp Utilities.cpp Flow.cpp InstructionUtilities.cpp
 
 
 lrparser.tab.cpp : lrparser.y
