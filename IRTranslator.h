@@ -529,7 +529,7 @@ namespace Backend::Translator {
                     return ans;
                 } () * 4;
                 for (size_t remainStackSize = stackSize; remainStackSize; ) {
-                    int sub = (int) std::min(remainStackSize, (size_t) 4095);
+                    int sub = (int) std::min(remainStackSize, (size_t) 1024);
                     ins << SubtractionInstruction(sp, sp, imm12(sub));
                     remainStackSize -= sub;
                 }
@@ -696,7 +696,7 @@ namespace Backend::Translator {
                             // Epilogue
                             // add      sp, sp #stack_size
                             for (size_t remainStackSize = stackSize; remainStackSize; ) {
-                                int sub = (int) std::min(remainStackSize, (size_t) 4095);
+                                int sub = (int) std::min(remainStackSize, (size_t) 1024);
                                 ins << AdditionInstruction(sp, sp, imm12(sub));
                                 remainStackSize -= sub;
                             }
