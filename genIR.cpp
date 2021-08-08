@@ -440,7 +440,16 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                             {
                                 temp = RVal_arr_list_l.top()->right;
                                 RVal_arr_list_l.pop();
-                                IntermediateRepresentation::IROperand ops_src = pri_exp(temp);
+                                IntermediateRepresentation::IROperand ops_src;
+                                if(temp->name == "initializer_list") //error
+                                {
+                                    temp = temp->right;
+                                    ops_src = pri_exp(temp);
+                                }
+                                else
+                                {
+                                    ops_src = pri_exp(temp);
+                                }
                                 IntermediateRepresentation::IROperand ops_off(IntermediateRepresentation::i32, index*4);
                                 IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::STORE, IntermediateRepresentation::i32, ops_src, my_ops0, ops_off);
                                 my_function->insertStatement(tempVar);
@@ -448,7 +457,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                             }
 
                             if(num < onesize) index = index + onesize - num;
-                            if(num > onesize) std::cout << "error at l362" << std::endl;
+                            //if(num > onesize) std::cout << "error at l362" << std::endl;
                         }
                         else
                         {
