@@ -189,6 +189,20 @@ namespace Backend::RegisterAllocation {
                         it->replaceDef(defVar, tmpRegister);
                         std::cout << "Replace def: " << it->statement->toString() << std::endl;
 
+                        if (itUse.count(defVar)) {
+                            it->replaceUse(defVar, tmpRegister);
+                            std::cout << "Replace use & def: " << it->statement->toString() << std::endl;
+                            itUse.erase(defVar);
+                            Flow::BasicBlock::BBStatement tmpStmt;
+                            auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD,
+                                                                                 IntermediateRepresentation::i32,
+                                                                                 tmpRegister,
+                                                                                 immOpr(offset));
+                            tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
+                            it = ins.insert(it, tmpStmt) + 1;
+                            std::cout << "Insert before def & use: " << tmpStmt.statement->toString() << std::endl;
+                        }
+
                         IntermediateRepresentation::Statement load_st;
 
                         // insert after

@@ -51,6 +51,7 @@ namespace Backend::Translator {
         using ArmRegAllocator = RegisterAllocation::RegisterAllocator<registerCount>;
         using allocator_t = Allocator<registerCount>;
         std::unique_ptr<ArmRegAllocator> allocator;
+        std::unordered_map<std::string, std::string> globalPtrToVal;
 
         void procGlobal(InstructionStream& textIns, InstructionStream& dataIns, std::unordered_map<std::string, std::string>& globalToLabel,
                         std::unordered_set<IntermediateRepresentation::IROperand>& globalSymbol) {
@@ -97,6 +98,7 @@ namespace Backend::Translator {
                      ptrIns << LabelInstruction(label_ptr) << DotInstruction(Instruction::DotInstruction::LONG, label_val);
                      valIns << LabelInstruction(label_val) << DotInstruction(Instruction::DotInstruction::ASCIZ, ops[1].getStrValue());
                  }
+                 globalPtrToVal[label_ptr] = label_val;
                  globalToLabel[varName] = label_ptr;
                  globalSymbol.insert(ops[0]);
             }
@@ -112,6 +114,7 @@ namespace Backend::Translator {
                  * */
                 size_t last_pos = 0, size = arr.getArrSize();
                 std::string label_val = "__GLB_ARR_" + arr.getArrayName(), label_ptr = "__GLB_ARR_PTR_" + arr.getArrayName();
+                globalPtrToVal[label_ptr] = label_val;
                 globalToLabel[arr.getArrayName()] = label_ptr;
                 globalSymbol.insert({ IntermediateRepresentation::i32, arr.getArrayName(), true });
                 ptrIns << LabelInstruction(label_ptr) << DotInstruction(Instruction::DotInstruction::LONG, label_val);
@@ -973,7 +976,10 @@ namespace Backend::Translator {
                             ins << std::move(moveq);
                         }
                             break;
-                        case IntermediateRepresentation::GLB_ARR:
+                        case IntermediateRepresentation::GLB_ARR: {
+                            ins << LoadInstruction(mapping.at(ops[0]), globalMapping[ops[1].getStrValue()]);
+                        }
+                            break;
                         case IntermediateRepresentation::GLB_CONST:
                         case IntermediateRepresentation::GLB_VAR: {
                             /*
@@ -981,7 +987,8 @@ namespace Backend::Translator {
                              *
                              * glb_xxx      %var_pos, "<global name>"
                              * */
-                            ins << LoadInstruction(mapping.at(ops[0]), globalMapping[ops[1].getStrValue()]);
+//                            ins << LoadInstruction(mapping.at(ops[0]), "=" + globalPtrToVal[globalMapping[ops[1].getStrValue()]]);
+                             ins << LoadInstruction(mapping.at(ops[0]), globalMapping[ops[1].getStrValue()]);
                         }
                             break;
                         case IntermediateRepresentation::LSH: {
