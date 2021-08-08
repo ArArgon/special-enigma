@@ -245,7 +245,7 @@ namespace Backend::RegisterAllocation {
 
     public:
         NoRegisterAllocation(Util::StackScheme * stack, IntermediateRepresentation::Function * func) :
-            baseType::RegisterAllocator(stack, func) {
+        baseType::RegisterAllocator(stack, func) {
             auto& stmts = baseType::sourceFunc->getStatements();
             auto& params = baseType::sourceFunc->getParameters();
 
