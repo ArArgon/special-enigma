@@ -549,11 +549,19 @@ namespace Backend::Translator {
                                  * breq     lb1
                                  * br       lb2
                                  * */
-                                ins << ComparisonInstruction(CMP, mapping.at(ops[0]), Operands::Operand2(imm8(1)));
-                                auto breq = BranchInstruction(B, ops[1].getStrValue());
-                                breq.setCondition(Instruction::Condition::Cond_Equal);
-                                ins << std::move(breq);
-                                ins << BranchInstruction(B, ops[2].getStrValue());
+                                if (ops[0].getIrOpType() == IntermediateRepresentation::ImmVal) {
+                                    int imm = ops[0].getValue();
+                                    if (imm)
+                                        ins << BranchInstruction(B, ops[1].getStrValue());
+                                    else
+                                        ins << BranchInstruction(B, ops[2].getStrValue());
+                                } else {
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[0]), Operands::Operand2(imm8(1)));
+                                    auto breq = BranchInstruction(B, ops[1].getStrValue());
+                                    breq.setCondition(Instruction::Condition::Cond_Equal);
+                                    ins << std::move(breq);
+                                    ins << BranchInstruction(B, ops[2].getStrValue());
+                                }
                             }
                         }
                             break;
