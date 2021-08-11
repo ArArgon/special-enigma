@@ -364,7 +364,6 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             arrayIndex.push_back(num);
 
             int arrSize = 1;
-            int onesize;
             while(!arr_list_stack.empty())
             {
                 temp = arr_list_stack.top()->right;
@@ -372,8 +371,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                 if(temp->name == "CONSTANT")
                 {
                     arrayIndex.push_back(temp->value);
-                    onesize = temp->value;
-                    arrSize *= onesize;
+                    arrSize *= temp->value;
                 }
                 else
                 {
@@ -411,9 +409,11 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
 
             temp = a->right;
             //do something
-            
             if(temp)
             {
+                int index = 0;
+                pri_arr_init_list(temp, s_name, arrayIndex, index, 1);
+                /*
                 int index = 0; //extern onesize
                 std::stack<AST*> RVal_arr_list;
                 while(temp)
@@ -426,7 +426,8 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                     temp = RVal_arr_list.top()->right;
                     RVal_arr_list.pop();
                     //std::cout << temp->name << std::endl;
-                    //initializer_list, CONSTANT 
+                    pri_arr_init_list(temp, s_name, arrayIndex, index, 1);
+
                     if(temp)
                     {
                         if(temp->name == "initializer_list")//only Two dimensional array
@@ -476,7 +477,9 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
                     {
                         index += onesize;
                     }
+                    
                 }
+                */
             }
         }
         else
@@ -542,6 +545,67 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             symTab->addLocalVar(symTabM);
 
         }
+    }
+}
+
+void pri_arr_init_list(AST* a, std::string s_name, std::vector<int> arrayIndex, int& index, int level)
+{
+    AST* temp = a;
+    int num = arrayIndex[0];
+    int onesize = 1;
+    int initializer_list_num = 0;
+    if(num >= level)
+    {
+        for(int i = level; i <= num; i++)
+        {
+            onesize *= arrayIndex[i];
+        }
+    }
+
+    std::stack<AST*> RVal_arr_list;
+
+    while(temp)
+    {
+        RVal_arr_list.push(temp);
+        temp = temp->left;
+        initializer_list_num++;
+    }
+    while(!RVal_arr_list.empty())
+    {
+        temp = RVal_arr_list.top()->right;
+        RVal_arr_list.pop();
+
+        if(temp)
+        {
+            if(temp->name == "initializer_list")//only Two dimensional array
+            {
+                pri_arr_init_list(temp, s_name, arrayIndex, index, level+1);
+                //if(num < onesize) index = index + onesize - num;
+                //if(num > onesize) std::cout << "error at l362" << std::endl;
+            }
+            else
+            {
+                IntermediateRepresentation::IROperand ops_src = pri_exp(temp);
+                IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, s_name, true);
+                IntermediateRepresentation::IROperand ops_off(IntermediateRepresentation::i32, index*4);
+                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::STORE, IntermediateRepresentation::i32, ops_src, my_ops0, ops_off);
+                my_function->insertStatement(tempVar);
+                index++;
+            }
+        }
+        else // {{}}
+        {
+            index += (onesize/arrayIndex[level]);
+        }
+    }
+
+    if(initializer_list_num < onesize)
+    {
+        index = index + onesize - initializer_list_num;
+    } 
+    else if(initializer_list_num > onesize)
+    {
+        std::cout << "error at pri_arr_init_list" << std::endl;
     }
 }
 
