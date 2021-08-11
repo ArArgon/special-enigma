@@ -696,8 +696,8 @@ namespace Backend::Translator {
                                 } else {
 //#warning "Imm16 is not implemented"
                                     int imm = ops[0].getValue();
-                                    if (immNeedProc(imm, 16))
-                                        ins << MoveInstruction(r0, Operands::Operand2(loadImm(imm)));
+                                    if (immNeedProc(imm, 10))
+                                        ins << LoadInstruction(r0, imm);
                                     else
                                         ins << MoveInstruction(r0, imm16(imm));
 //                                    ins << MoveInstruction(r0, imm16(ops[0].getValue()));
@@ -747,8 +747,8 @@ namespace Backend::Translator {
                              * */
 //#warning "Imm16 not implemented"
                             int imm = stackSize - ops[1].getValue();
-                            if (immNeedProc(imm, 16))
-                                ins << MoveInstruction(mapping.at(ops[0]), loadImm(imm));
+                            if (immNeedProc(imm, 10))
+                                ins << LoadInstruction(mapping.at(ops[0]), imm);
                             else
                                 ins << MoveInstruction(mapping.at(ops[0]), imm16(imm));
 
