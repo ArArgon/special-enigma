@@ -51,13 +51,14 @@ namespace Instruction::Operands {
         int32_t Value;
 
         inline int32_t tailor(int32_t val) {
-            if (len > 0)
-                return val & ((1u << len) - 1u);
-            if (!len)
-                return val;
-            // len < 0
-            return (abs(val) & 0x3ff) * (-1 + (val >= 0) * 2);
-
+            return val;
+            // disable tailor
+//            if (len > 0)
+//                return val & ((1u << len) - 1u);
+//            if (!len)
+//                return val;
+//            // len < 0
+//            return (abs(val) & 0x3ff) * (-1 + (val >= 0) * 2);
         }
     public:
 

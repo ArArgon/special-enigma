@@ -235,7 +235,7 @@ namespace Backend::Translator {
 
             for (auto it = stmts.begin(); it != stmts.end(); it++) {
                 auto& stmt = *it;
-                const auto& ops = stmt.getOps();
+                const auto ops = stmt.getRefOps();
                 switch (stmt.getStmtType()) {
                     case IntermediateRepresentation::MOD: {
                         // mod      %dest, %opr1, %opr2
@@ -768,10 +768,13 @@ namespace Backend::Translator {
                             } else {
                                 auto stk_pointer = fp;
                                 int imm = ops[1].getValue();
+                                imm = (imm < 0) ? static_cast<int>((-(4 * pushSize - (4 + imm) * 4))) : -imm;
                                 if (imm < 0) {
-                                    imm = -(4 * pushSize - (4 + imm) * 4);
+                                    if (std::abs(imm) > std::abs((int) stackSize + imm)) {
+                                        imm = (int) stackSize + imm;
+                                        stk_pointer = sp;
+                                    }
                                 }
-                                imm = -imm;
                                 if (immNeedProc(imm, -12))
                                     ins << LoadInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(stk_pointer, loadImm(imm), true));
                                 else
@@ -798,6 +801,12 @@ namespace Backend::Translator {
                                     imm = -4 * imm;
                                 }
                                 imm = -imm;
+                                if (imm < 0 && fp == stk_pointer) {
+                                    if (std::abs(imm) > std::abs(((int) stackSize) + imm)) {
+                                        imm = ((int) stackSize) + imm;
+                                        stk_pointer = sp;
+                                    }
+                                }
                                 if (immNeedProc(imm, -12))
                                     ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(stk_pointer, loadImm(imm),true));
                                 else
