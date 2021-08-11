@@ -682,14 +682,22 @@ void trans_block(AST* a)
             }
             else if(temp->name == "if_statement")
             {
-                if(temp->right->name == "ELSE")
+                if(temp->right)
                 {
-                    pri_if_else(temp);
+                    if(temp->right->name == "ELSE")
+                    {
+                        pri_if_else(temp);
+                    }
+                    else
+                    {
+                        pri_if(temp);
+                    }
                 }
                 else
                 {
                     pri_if(temp);
                 }
+                
             }
             else if(temp->name == "while_statement")
             {
