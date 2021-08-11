@@ -1082,9 +1082,16 @@ namespace Backend::Translator {
                         case IntermediateRepresentation::NOT: {
                             /*
                              * not      %dest
-                             * mvn      %dest, %dest
+                             * cmp      %dest, 0
+                             * moveq    %dest, 1
+                             * movne    %dest, 0
                              * */
-                            ins << MoveInverseInstruction(mapping.at(ops[0]), mapping.at(ops[0]));
+                            auto dest = mapping.at(ops[0]);
+                            ins << ComparisonInstruction(CMP, dest, imm8(0));
+                            auto moveq = MoveInverseInstruction(dest, imm8(1)), movne = MoveInverseInstruction(dest, imm8(0));
+                            moveq.setCondition(Instruction::Condition::Cond_Equal);
+                            movne.setCondition(Instruction::Condition::Cond_NotEqual);
+                            ins << std::move(moveq) << std::move(movne);
                         }
                             break;
                         case IntermediateRepresentation::PHI:
