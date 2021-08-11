@@ -28,4 +28,11 @@ namespace Backend::Util {
     size_t StackScheme::getStackSize() const {
         return currentStackSize;
     }
+
+    std::map<std::string, size_t> StackScheme::getStackBrief() const {
+        std::map<std::string, size_t> ans;
+        for (auto& var : inStackVariables)
+            ans[var.toString()] = variablePosition.at(var);
+        return ans;
+    }
 }

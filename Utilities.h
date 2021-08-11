@@ -154,7 +154,6 @@ namespace Backend::Util {
             for (auto& node : G)
                 delete node;
         }
-
     };
 
     template<class NodeType, bool enableDepth = false>
@@ -239,6 +238,8 @@ namespace Backend::Util {
         bool isInStack(const var_t& opr) const;
 
         size_t getStackSize() const;
+
+        std::map<std::string, size_t> getStackBrief() const;
     };
 
     template<class Set>

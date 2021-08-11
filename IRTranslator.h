@@ -262,7 +262,7 @@ namespace Backend::Translator {
                             throw std::runtime_error("Invalid IR: dynamic allocation on stack is prohibited. Entailed IR: " + stmt.toString());
                         int size = ops[1].getValue();
                         // alloca       *i32 %dest, i32 %<stackPosition>
-                        ops[1].setValue(static_cast<int>(stackScheme.allocate(ops[0], size)));
+                        stmt.getRefOps()[1].setValue(static_cast<int>(stackScheme.allocate(ops[0], size)));
                     }
                         break;
                     case IntermediateRepresentation::RETURN: {
@@ -482,9 +482,9 @@ namespace Backend::Translator {
                     std::cout << "Translator: Register assignment complete" << std::endl;
                     std::cout << "After register assignment: " << std::endl << func.toString() << std::endl;
 
-                    std::cout << "Allocation scheme: " << std::endl;
-                    for (auto& alloc : allocation)
-                        std::cout << "\t" << alloc.first.toString() << ": " << numToReg[alloc.second] << std::endl;
+                    std::cout << "Stack scheme: " << std::endl;
+                    for (auto& alloc : stackLayout.getStackBrief())
+                        std::cout << "\t" << alloc.first << ": " << alloc.second << std::endl;
                 }
 
                 // mapping colours
