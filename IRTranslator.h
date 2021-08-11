@@ -235,7 +235,7 @@ namespace Backend::Translator {
 
             for (auto it = stmts.begin(); it != stmts.end(); it++) {
                 auto& stmt = *it;
-                auto ops = stmt.getRefOps();
+                const auto& ops = stmt.getOps();
                 switch (stmt.getStmtType()) {
                     case IntermediateRepresentation::MOD: {
                         // mod      %dest, %opr1, %opr2
