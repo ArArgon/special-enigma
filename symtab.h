@@ -19,18 +19,18 @@ struct symbalTableMember
     std::string ssa_name;
     std::string original_name;
     symTabType type; //"INT" "ARRAY" "FUNC"
-    int label_name;// "global" ..."param - 0"
+    int level;// "global" ..."param - 0"
     bool initialized = 0;
     std::vector<int> value;//initialized =1,value.empty()=1,-->all value =0 ;
                            // func param  int var 1, arr 0
     std::vector<int> arrayIndex; //[0] -
 
-    void init(std::string in_ssa_name, std::string in_original_name, symTabType in_type, int in_label_name)
+    void init(std::string in_ssa_name, std::string in_original_name, symTabType in_type, int in_level)
     {
         ssa_name = in_ssa_name;
         original_name = in_original_name;
         type = in_type;
-        label_name = in_label_name;
+        level = in_level;
 
     }
 };
@@ -78,17 +78,38 @@ public:
         return -1;
     }
 
-    int findInLocal(std::string name, int label, symbalTableMember::symTabType in_type)
+    int findInLocal(std::string name, symbalTableMember::symTabType in_type)
     {
         if(localvar.empty())
             return -1;
         int count = localvar.size();
         for (int i = count-1; i >= 0; i--)
         {
-            if((localvar[i].original_name == name) && (localvar[i].label_name==label) && (localvar[i].type==in_type))
+            if((localvar[i].original_name == name) && (localvar[i].type==in_type))
                 return i;
         }
         return -1;
+    }
+
+    int deleteLocalLevel(int in_level)
+    {
+        if(localvar.empty())
+            return -1;
+        int count = localvar.size();
+        for (int i = count-1; i >= 0; i--)
+        {
+            //std::cout << localvar[i].level <<std::endl;
+            if(localvar[i].level==in_level)
+            {
+                
+                localvar.pop_back();
+            }
+            else
+            {
+                break;
+            }
+        }
+        return 0;
     }
 
     int findFunc(std::string name)
@@ -127,7 +148,7 @@ public:
     
     symbalTableMember find(std::string in_name, symbalTableMember::symTabType in_type)
     {
-        int i = findInLocal(in_name, 0, in_type);
+        int i = findInLocal(in_name, in_type);
         if(i >= 0)
         {
             return getLocalVar(i);

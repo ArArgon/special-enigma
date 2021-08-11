@@ -7,6 +7,7 @@
 #include "ast.h"
 
 symbalTable *symTab;
+int symTabLevel;
 std::vector<IntermediateRepresentation::Statement> *my_global;
 std::vector<IntermediateRepresentation::Function> *my_functions;
 std::vector<IntermediateRepresentation::IRArray> *my_globalArrays;
@@ -154,13 +155,14 @@ void pri_var(AST* a, std::string type, bool isconst, bool isglobal)
         {
             AST* temp = a->left;
             std::string name = temp->content;
+            std::string s_name = name+"_"+getNewNameLocalVar();
             temp = a->right;
-            IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, "var_"+name);
+            IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, s_name);
             IntermediateRepresentation::IROperand my_ops1 = pri_exp(temp);
             IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, my_ops0, my_ops1);
             my_function->insertStatement(tempVar);
             symbalTableMember symTabM;
-            symTabM.init("var_"+name, name, symbalTableMember::INT, 0);
+            symTabM.init(s_name, name, symbalTableMember::INT, symTabLevel);
             if(my_ops1.getIrOpType() == IntermediateRepresentation::ImmVal)
             {
                 int value = my_ops1.getValue();
@@ -174,13 +176,13 @@ void pri_var(AST* a, std::string type, bool isconst, bool isglobal)
         {
             std::string name = a->content;
             /*
-            IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, "var_"+name);
+            IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, s_name);
             IntermediateRepresentation::IROperand my_ops1(IntermediateRepresentation::i32, 0);
             IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, my_ops0, my_ops1);
             my_function->insertStatement(tempVar);
             */
             symbalTableMember symTabM;
-            symTabM.init("var_"+name, name, symbalTableMember::INT, 0);
+            symTabM.init(name+"_"+getNewNameLocalVar(), name, symbalTableMember::INT, symTabLevel);
             symTab->addLocalVar(symTabM);
 
         }
@@ -391,7 +393,8 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             }
             arrSize *= 4; //here local arrSize is bytes
 
-            IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, "var_"+name, true);
+            std::string s_name = name+"_"+getNewNameLocalVar();
+            IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, s_name, true);
             IntermediateRepresentation::IROperand my_ops1(IntermediateRepresentation::i32, arrSize);
             IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ALLOCA, IntermediateRepresentation::i32, my_ops0, my_ops1);
             my_function->insertStatement(tempVar);
@@ -402,7 +405,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             my_function->insertStatement(tempVar1);
 
             symbalTableMember symTabM;
-            symTabM.init("var_"+name, name, symbalTableMember::ARRAY, 0);
+            symTabM.init(s_name, name, symbalTableMember::ARRAY, symTabLevel);
             symTabM.arrayIndex = arrayIndex;
             symTab->addLocalVar(symTabM);
 
@@ -522,7 +525,8 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             }
             arrSize *= 4;
 
-            IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, "var_"+name, true);
+            std::string s_name = name+"_"+getNewNameLocalVar();
+            IntermediateRepresentation::IROperand my_ops0(IntermediateRepresentation::i32, s_name, true);
             IntermediateRepresentation::IROperand my_ops1(IntermediateRepresentation::i32, arrSize);
             IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ALLOCA, IntermediateRepresentation::i32, my_ops0, my_ops1);
             my_function->insertStatement(tempVar);
@@ -533,7 +537,7 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             my_function->insertStatement(tempVar1);
 
             symbalTableMember symTabM;
-            symTabM.init("var_"+name, name, symbalTableMember::ARRAY, 0);
+            symTabM.init(s_name, name, symbalTableMember::ARRAY, symTabLevel);
             symTabM.arrayIndex = arrayIndex;
             symTab->addLocalVar(symTabM);
 
@@ -545,6 +549,7 @@ void trans_func_def(AST* a)
 {
     my_function = new IntermediateRepresentation::Function;
     localVarNum = 1;
+    symTabLevel = 0;
 
     AST* temp = a->left;
     std::string type = temp->name; //INT or VOID
@@ -597,12 +602,13 @@ void trans_param(AST* a, std::string func_name, std::vector<int> &value)
             {
                 value.push_back(1);
                 std::string name = temp->content;
+                std::string s_name = name+"_"+getNewNameLocalVar();
 
-                IntermediateRepresentation::IROperand param(IntermediateRepresentation::i32, "var_"+name);
+                IntermediateRepresentation::IROperand param(IntermediateRepresentation::i32, s_name);
                 my_function->insertParam(param);
                 
                 symbalTableMember symTabM;
-                symTabM.init("var_"+name, name, symbalTableMember::INT, 0);
+                symTabM.init(s_name, name, symbalTableMember::INT, 1);
                 symTab->addLocalVar(symTabM);
 
             }
@@ -637,10 +643,11 @@ void trans_param(AST* a, std::string func_name, std::vector<int> &value)
                         arrayIndex.push_back(0);
                     }
                 }
-                IntermediateRepresentation::IROperand param(IntermediateRepresentation::i32, "var_"+name, true);
+                std::string s_name = name+"_"+getNewNameLocalVar();
+                IntermediateRepresentation::IROperand param(IntermediateRepresentation::i32, s_name, true);
                 my_function->insertParam(param);
                 symbalTableMember symTabM;
-                symTabM.init("var_"+name, name, symbalTableMember::ARRAY, 0);
+                symTabM.init(s_name, name, symbalTableMember::ARRAY, 1);
                 symTabM.arrayIndex = arrayIndex;
                 symTab->addGlobalVar(symTabM);
             }
@@ -651,6 +658,7 @@ void trans_param(AST* a, std::string func_name, std::vector<int> &value)
 
 void trans_block(AST* a)
 {
+    symTabLevel++;
     std::stack<AST*> blockitem_list;
     AST* temp = a;
     while(temp)
@@ -715,7 +723,6 @@ void trans_block(AST* a)
                 IntermediateRepresentation::IROperand ops_lab_after(whileLables.top().after);
                 IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_after);
                 my_function->insertStatement(tempVar);
-
             }
             else if(temp->name == "RETURN") //return i32, no return ptr
             {
@@ -732,6 +739,10 @@ void trans_block(AST* a)
                     IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::RETURN, IntermediateRepresentation::t_void, ops_re);
                     my_function->insertStatement(tempVar);
                 }
+            }//blockitem_list
+            else if(temp->name == "blockitem_list")
+            {
+                trans_block(temp);
             }
             else
             {
@@ -740,6 +751,13 @@ void trans_block(AST* a)
             }
         }
     }
+    /*
+    std::cout << "*****" << std::endl;
+    std::cout << symTabLevel << std::endl;
+    std::cout << "**" << std::endl;
+    */
+    symTab->deleteLocalLevel(symTabLevel);
+    symTabLevel--;
 }
 
 void pri_exp_statement(AST* a)
@@ -907,7 +925,6 @@ void pri_single_statement_block(AST* a)
     if(temp->name == "blockitem_list")
     {
         trans_block(temp);
-
     }
     else if(temp->name == "expression_statement")
     {
