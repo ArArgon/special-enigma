@@ -262,7 +262,7 @@ namespace Backend::Translator {
                             throw std::runtime_error("Invalid IR: dynamic allocation on stack is prohibited. Entailed IR: " + stmt.toString());
                         int size = ops[1].getValue();
                         // alloca       *i32 %dest, i32 %<stackPosition>
-                        stmt.getRefOps()[1].setValue(static_cast<int>(stackScheme.allocate(ops[0], size)));
+                        stmt.getRefOps()[1].setValue(size + static_cast<int>(stackScheme.allocate(ops[0], size)));
                     }
                         break;
                     case IntermediateRepresentation::RETURN: {
@@ -768,7 +768,7 @@ namespace Backend::Translator {
                             } else {
                                 auto stk_pointer = fp;
                                 int imm = ops[1].getValue();
-                                imm = (imm < 0) ? static_cast<int>((-(4 * pushSize - (4 + imm) * 4))) : -imm;
+                                imm = (imm < 0) ? static_cast<int>(4 * pushSize - (4 + imm) * 4) : -imm;
                                 if (imm < 0) {
                                     if (std::abs(imm) > std::abs((int) stackSize + imm)) {
                                         imm = (int) stackSize + imm;
