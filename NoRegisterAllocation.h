@@ -168,7 +168,8 @@ namespace Backend::RegisterAllocation {
                         registerSet.insert(1);
                         continue;
                     }
-                    std::cout << "Modify statement: " << it->statement->toString() << std::endl;
+                    if (isDebug)
+                        std::cout << "Modify statement: " << it->statement->toString() << std::endl;
                     auto itDef = it->def, itUse = it->use;
                     std::set<size_t> usedReg;
                     for (auto& defVar : itDef) {
@@ -187,11 +188,13 @@ namespace Backend::RegisterAllocation {
 
                         // replace variable
                         it->replaceDef(defVar, tmpRegister);
-                        std::cout << "\tReplace def: " << it->statement->toString() << std::endl;
+                        if (isDebug)
+                            std::cout << "\tReplace def: " << it->statement->toString() << std::endl;
 
                         if (itUse.count(defVar)) {
                             it->replaceUse(defVar, tmpRegister);
-                            std::cout << "\tReplace use & def: " << it->statement->toString() << std::endl;
+                            if (isDebug)
+                                std::cout << "\tReplace use & def: " << it->statement->toString() << std::endl;
                             itUse.erase(defVar);
                             Flow::BasicBlock::BBStatement tmpStmt;
                             auto load_st = IntermediateRepresentation::Statement(IntermediateRepresentation::STK_LOAD,
@@ -200,7 +203,8 @@ namespace Backend::RegisterAllocation {
                                                                                  immOpr(offset));
                             tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                             it = ins.insert(it, tmpStmt) + 1;
-                            std::cout << "\tInsert before def & use: " << tmpStmt.statement->toString() << std::endl;
+                            if (isDebug)
+                                std::cout << "\tInsert before def & use: " << tmpStmt.statement->toString() << std::endl;
                         }
 
                         IntermediateRepresentation::Statement load_st;
@@ -210,7 +214,8 @@ namespace Backend::RegisterAllocation {
                                                                         IntermediateRepresentation::i32, tmpRegister,
                                                                         immOpr(offset));
                         insertAfter(load_st);
-                        std::cout << "\tInsert after def: " << load_st.toString() << std::endl;
+                        if (isDebug)
+                            std::cout << "\tInsert after def: " << load_st.toString() << std::endl;
 
                         // push stk for caller
                         if (varBind[defVar] == -1) {
@@ -219,7 +224,8 @@ namespace Backend::RegisterAllocation {
                                                                             IntermediateRepresentation::i32, tmpRegister,
                                                                             immOpr(-offset), var_t());
                             insertAfter(load_st);
-                            std::cout << "\tInsert after def for caller: " << load_st.toString() << std::endl;
+                            if (isDebug)
+                                std::cout << "\tInsert after def for caller: " << load_st.toString() << std::endl;
                         }
                     }
                     for (auto &useVar : itUse) {
@@ -238,7 +244,8 @@ namespace Backend::RegisterAllocation {
 
                         // replace use
                         it->replaceUse(useVar, tmpRegister);
-                        std::cout << "\tReplace use: " << it->statement->toString() << std::endl;
+                        if (isDebug)
+                            std::cout << "\tReplace use: " << it->statement->toString() << std::endl;
 
                         // insert before
                         if (!itDef.count(useVar)) {
@@ -249,7 +256,8 @@ namespace Backend::RegisterAllocation {
                                                                                  immOpr(offset));
                             tmpStmt.statement = new IntermediateRepresentation::Statement(load_st);
                             it = ins.insert(it, tmpStmt) + 1;
-                            std::cout << "\tInsert before use: " << tmpStmt.statement->toString() << std::endl;
+                            if (isDebug)
+                                std::cout << "\tInsert before use: " << tmpStmt.statement->toString() << std::endl;
                         }
                     }
 

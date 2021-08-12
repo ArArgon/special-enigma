@@ -1004,10 +1004,7 @@ namespace Backend::Translator {
                             ins << std::move(moveq);
                         }
                             break;
-                        case IntermediateRepresentation::GLB_ARR: {
-                            ins << LoadInstruction(mapping.at(ops[0]), globalMapping[ops[1].getStrValue()]);
-                        }
-                            break;
+                        case IntermediateRepresentation::GLB_ARR:
                         case IntermediateRepresentation::GLB_CONST:
                         case IntermediateRepresentation::GLB_VAR: {
                             /*
@@ -1015,8 +1012,8 @@ namespace Backend::Translator {
                              *
                              * glb_xxx      %var_pos, "<global name>"
                              * */
-//                            ins << LoadInstruction(mapping.at(ops[0]), "=" + globalPtrToVal[globalMapping[ops[1].getStrValue()]]);
-                             ins << LoadInstruction(mapping.at(ops[0]), globalMapping[ops[1].getStrValue()]);
+                            ins << LoadInstruction(mapping.at(ops[0]), "=" + globalPtrToVal[globalMapping[ops[1].getStrValue()]]);
+//                             ins << LoadInstruction(mapping.at(ops[0]), globalMapping[ops[1].getStrValue()]);
                         }
                             break;
                         case IntermediateRepresentation::LSH: {
