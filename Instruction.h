@@ -615,7 +615,8 @@ namespace Instruction {
         Operands::Register destReg;
         Operands::Operand2 resOpr2;
         Operands::ImmediateNumber<16> resImm16;
-        bool isOpr2, update;
+        bool isOpr2, update, isCustomImm = false;
+        std::string customImm;
         MovePosition position = ALL;
 
     public:
@@ -633,6 +634,9 @@ namespace Instruction {
 
         MoveInstruction(const Operands::Register &sourceReg, const Operands::ImmediateNumber<16> &destImm16)
                 : destReg(sourceReg), resImm16(destImm16), isOpr2(false), update(false) { }
+
+        MoveInstruction(const Operands::Register &sourceReg, const std::string &customImm)
+                : destReg(sourceReg), customImm(customImm), isOpr2(false), update(false), isCustomImm(true) { }
 
         MoveInstruction(const Operands::Register &destReg, const Operands::Operand2 &resOpr2, bool update) : destReg(
                 destReg), resOpr2(resOpr2), update(update), isOpr2(true) { }
@@ -654,6 +658,8 @@ namespace Instruction {
             opr = destReg.toASM() + ", ";
             if (isOpr2)
                 opr += resOpr2.toASM();
+            else if (isCustomImm)
+                opr += "#" + customImm;
             else
                 opr += resImm16.toASM();
             return Utilities::ASMFormatter(ins, opr).toASM();
