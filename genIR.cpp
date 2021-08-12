@@ -1084,32 +1084,57 @@ IntermediateRepresentation::IROperand pri_cond(AST* a)
         }
         else
         {
+            std::string label_x = getNewLabel();
+            IntermediateRepresentation::IROperand ops_lab_x(label_x);
+            std::string label_y = getNewLabel();
+            IntermediateRepresentation::IROperand ops_lab_y(label_y);
+            std::string label_z = getNewLabel();
+            IntermediateRepresentation::IROperand ops_lab_z(label_z);
+
+            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_l, ops_lab_x, ops_lab_y);
+            my_function->insertStatement(tempVar);
+
+            IntermediateRepresentation::Statement tempVar1(IntermediateRepresentation::LABEL, IntermediateRepresentation::t_void, ops_lab_x);
+            my_function->insertStatement(tempVar1);
             ops_r = pri_cond(a->right);
-        
+            IntermediateRepresentation::IROperand ops_dest;
             if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal)
             {
                 if(ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
                 {
                     int value_l = ops_l.getValue();
                     int value_r = ops_r.getValue();
-                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l&&value_r);
-                    return ops_dest;
+                    IntermediateRepresentation::IROperand ops_dest_t(IntermediateRepresentation::i32, value_l&&value_r);
+                    ops_dest = ops_dest_t;
                 }
                 else
                 {
-                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
-                    IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::AND, IntermediateRepresentation::i32, ops_dest, ops_r, ops_l);
-                    my_function->insertStatement(tempVar);
-                    return ops_dest;
+                    IntermediateRepresentation::IROperand ops_dest_t(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::Statement tempVar0(IntermediateRepresentation::AND, IntermediateRepresentation::i32, ops_dest_t, ops_r, ops_l);
+                    my_function->insertStatement(tempVar0);
+                    ops_dest = ops_dest_t;
                 }
             }
             else
             {
-                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
-                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::AND, IntermediateRepresentation::i32, ops_dest, ops_l, ops_r);
-                my_function->insertStatement(tempVar);
-                return ops_dest;
+                IntermediateRepresentation::IROperand ops_dest_t(IntermediateRepresentation::i32, getNewNameLocalVar());
+                IntermediateRepresentation::Statement tempVar0(IntermediateRepresentation::AND, IntermediateRepresentation::i32, ops_dest_t, ops_l, ops_r);
+                my_function->insertStatement(tempVar0);
+                ops_dest = ops_dest_t;
             }
+            IntermediateRepresentation::Statement tempVar2(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_z);
+            my_function->insertStatement(tempVar2);
+
+            IntermediateRepresentation::Statement tempVar3(IntermediateRepresentation::LABEL, IntermediateRepresentation::t_void, ops_lab_y);
+            my_function->insertStatement(tempVar3);
+            IntermediateRepresentation::IROperand ops_Imm0(IntermediateRepresentation::i32, 0);
+            IntermediateRepresentation::Statement tempVar4(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, ops_dest, ops_Imm0);
+            my_function->insertStatement(tempVar4);
+            my_function->insertStatement(tempVar2);
+
+            IntermediateRepresentation::Statement tempVar5(IntermediateRepresentation::LABEL, IntermediateRepresentation::t_void, ops_lab_z);
+            my_function->insertStatement(tempVar5);
+            return ops_dest;
         }
     }
     else if(cond_operator == "OR_OP")
@@ -1123,32 +1148,57 @@ IntermediateRepresentation::IROperand pri_cond(AST* a)
         }
         else
         {
+            std::string label_x = getNewLabel();
+            IntermediateRepresentation::IROperand ops_lab_x(label_x);
+            std::string label_y = getNewLabel();
+            IntermediateRepresentation::IROperand ops_lab_y(label_y);
+            std::string label_z = getNewLabel();
+            IntermediateRepresentation::IROperand ops_lab_z(label_z);
+
+            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_l, ops_lab_x, ops_lab_y);
+            my_function->insertStatement(tempVar);
+
+            IntermediateRepresentation::Statement tempVar1(IntermediateRepresentation::LABEL, IntermediateRepresentation::t_void, ops_lab_y);
+            my_function->insertStatement(tempVar1);
             ops_r = pri_cond(a->right);
-        
+            IntermediateRepresentation::IROperand ops_dest;
             if(ops_l.getIrOpType() == IntermediateRepresentation::ImmVal)
             {
                 if(ops_r.getIrOpType() == IntermediateRepresentation::ImmVal)
                 {
                     int value_l = ops_l.getValue();
                     int value_r = ops_r.getValue();
-                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, value_l||value_r);
-                    return ops_dest;
+                    IntermediateRepresentation::IROperand ops_dest_t(IntermediateRepresentation::i32, value_l||value_r);
+                    ops_dest = ops_dest_t;
                 }
                 else
                 {
-                    IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
-                    IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::OR, IntermediateRepresentation::i32, ops_dest, ops_r, ops_l);
-                    my_function->insertStatement(tempVar);
-                    return ops_dest;
+                    IntermediateRepresentation::IROperand ops_dest_t(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::Statement tempVar0(IntermediateRepresentation::OR, IntermediateRepresentation::i32, ops_dest_t, ops_r, ops_l);
+                    my_function->insertStatement(tempVar0);
+                    ops_dest = ops_dest_t;
                 }
             }
             else
             {
-                IntermediateRepresentation::IROperand ops_dest(IntermediateRepresentation::i32, getNewNameLocalVar());
-                IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::OR, IntermediateRepresentation::i32, ops_dest, ops_l, ops_r);
-                my_function->insertStatement(tempVar);
-                return ops_dest;
+                IntermediateRepresentation::IROperand ops_dest_t(IntermediateRepresentation::i32, getNewNameLocalVar());
+                IntermediateRepresentation::Statement tempVar0(IntermediateRepresentation::OR, IntermediateRepresentation::i32, ops_dest_t, ops_l, ops_r);
+                my_function->insertStatement(tempVar0);
+                ops_dest = ops_dest_t;
             }
+            IntermediateRepresentation::Statement tempVar2(IntermediateRepresentation::BR, IntermediateRepresentation::t_void, ops_lab_z);
+            my_function->insertStatement(tempVar2);
+
+            IntermediateRepresentation::Statement tempVar3(IntermediateRepresentation::LABEL, IntermediateRepresentation::t_void, ops_lab_x);
+            my_function->insertStatement(tempVar3);
+            IntermediateRepresentation::IROperand ops_Imm1(IntermediateRepresentation::i32, 1);
+            IntermediateRepresentation::Statement tempVar4(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, ops_dest, ops_Imm1);
+            my_function->insertStatement(tempVar4);
+            my_function->insertStatement(tempVar2);
+
+            IntermediateRepresentation::Statement tempVar5(IntermediateRepresentation::LABEL, IntermediateRepresentation::t_void, ops_lab_z);
+            my_function->insertStatement(tempVar5);
+            return ops_dest;
         }
     }
     else
