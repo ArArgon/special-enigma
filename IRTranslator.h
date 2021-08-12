@@ -539,11 +539,13 @@ namespace Backend::Translator {
                     }
                     return ans;
                 } () * 4;
-                for (size_t remainStackSize = stackSize; remainStackSize; ) {
-                    int sub = (int) std::min(remainStackSize, (size_t) 1024);
-                    ins << SubtractionInstruction(sp, sp, imm12(sub));
-                    remainStackSize -= sub;
-                }
+                loadImmTo(stackSize, r9);
+                ins << SubtractionInstruction(sp, sp, r9);
+//                for (size_t remainStackSize = stackSize; remainStackSize; ) {
+//                    int sub = (int) std::min(remainStackSize, (size_t) 1024);
+//                    ins << SubtractionInstruction(sp, sp, imm12(sub));
+//                    remainStackSize -= sub;
+//                }
 
                 for (auto& stmt : stmts) {
                     const auto& ops = stmt.getOps();
@@ -716,11 +718,13 @@ namespace Backend::Translator {
 
                             // Epilogue
                             // add      sp, sp #stack_size
-                            for (size_t remainStackSize = stackSize; remainStackSize; ) {
-                                int sub = (int) std::min(remainStackSize, (size_t) 1024);
-                                ins << AdditionInstruction(sp, sp, imm12(sub));
-                                remainStackSize -= sub;
-                            }
+                            loadImmTo(stackSize, r9);
+                            ins << AdditionInstruction(sp, sp, r9);
+//                            for (size_t remainStackSize = stackSize; remainStackSize; ) {
+//                                int sub = (int) std::min(remainStackSize, (size_t) 1024);
+//                                ins << AdditionInstruction(sp, sp, imm12(sub));
+//                                remainStackSize -= sub;
+//                            }
                             // pop      { rx, rx, ..., fp, lr }
                             ins << PopInstruction(list);
                             // bx       lr
