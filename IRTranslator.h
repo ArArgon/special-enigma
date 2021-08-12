@@ -446,8 +446,16 @@ namespace Backend::Translator {
                 }
             };
 
+            auto loadImmTo = [&] (int imm, const Operands::Register& dest) {
+                uint32_t low = imm & 0x0000ffff, high = (imm & 0xffff0000) >> 16;
+                ins << MoveInstruction(dest, imm16(low), false, MoveInstruction::MovePosition::LOW);
+                if (high)
+                    ins << MoveInstruction(dest, imm16(high), false, MoveInstruction::MovePosition::HIGH);
+            };
+
             auto loadImm = [&] (int imm) {
-                ins << LoadInstruction(r9, imm);
+                loadImmTo(imm, r9);
+//                ins << LoadInstruction(r9, imm);
                 return r9;
             };
 
@@ -615,7 +623,8 @@ namespace Backend::Translator {
                                     ins << SubtractionInstruction(dest, loadImm(ops[1].getValue()), opr2);
                                 } else {
                                     int imm = ops[1].getValue() - ops[2].getValue();
-                                    ins << LoadInstruction(dest, imm);
+                                    loadImmTo(imm, dest);
+//                                    ins << LoadInstruction(dest, imm);
                                 }
                             } else {
                                 auto dest = mapping.at(ops[0]), opr1 = mapping.at(ops[1]);
@@ -696,9 +705,10 @@ namespace Backend::Translator {
                                 } else {
 //#warning "Imm16 is not implemented"
                                     int imm = ops[0].getValue();
-                                    if (immNeedProc(imm, 10))
-                                        ins << LoadInstruction(r0, imm);
-                                    else
+                                    if (immNeedProc(imm, 10)) {
+                                        loadImmTo(imm, r0);
+//                                        ins << LoadInstruction(r0, imm);
+                                    } else
                                         ins << MoveInstruction(r0, imm16(imm));
 //                                    ins << MoveInstruction(r0, imm16(ops[0].getValue()));
                                 }
@@ -725,7 +735,7 @@ namespace Backend::Translator {
                                 // mov      %dest, #<value>
                                 int imm = ops[1].getValue();
                                 if (immNeedProc(imm, 10))
-                                    ins << LoadInstruction(mapping.at(ops[0]), imm);
+                                    ins << MoveInstruction(mapping.at(ops[0]), loadImm(imm));
                                 else
                                     ins << MoveInstruction(mapping.at(ops[0]), imm16(imm));
                             } else {
@@ -747,8 +757,10 @@ namespace Backend::Translator {
                              * */
 //#warning "Imm16 not implemented"
                             int imm = stackSize - ops[1].getValue();
-                            if (immNeedProc(imm, 10))
-                                ins << LoadInstruction(mapping.at(ops[0]), imm);
+                            if (immNeedProc(imm, 10)) {
+                                loadImmTo(imm, mapping.at(ops[0]));
+//                                ins << LoadInstruction(mapping.at(ops[0]), imm);
+                            }
                             else
                                 ins << MoveInstruction(mapping.at(ops[0]), imm16(imm));
 
@@ -852,11 +864,14 @@ namespace Backend::Translator {
                                         ins << SaveInstruction(mapping.at(ops[0]), Operands::LoadSaveOperand(mapping.at(ops[1]), imm, true));
                                 }
                             } else {
+                                // %source is a constant
                                 if (ops[2].getIrOpType() == IntermediateRepresentation::Var) {
+                                    loadImmTo(ops[0].getValue(), r10);
                                     ins << SaveInstruction(r10, Operands::LoadSaveOperand(mapping.at(ops[1]), mapping.at(ops[2]), true));
                                 } else {
                                     int immOff = ops[2].getValue();
-                                    ins << LoadInstruction(r10, ops[0].getValue());
+                                    loadImmTo(ops[0].getValue(), r10);
+//                                    ins << LoadInstruction(r10, ops[0].getValue());
                                     if (immNeedProc(immOff, -12))
                                         ins << SaveInstruction(r10, Operands::LoadSaveOperand(mapping.at(ops[1]), loadImm(immOff), true));
                                     else
