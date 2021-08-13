@@ -455,8 +455,18 @@ namespace Backend::Translator {
 
             auto loadImm = [&] (int imm) {
                 loadImmTo(imm, r9);
-//                ins << LoadInstruction(r9, imm);
                 return r9;
+            };
+
+            auto castBool = [&] (const Operands::Register& sourceReg, const Operands::Register& destReg) {
+                // cmp      %sourceReg, 0
+                ins << ComparisonInstruction(Instruction::CMP, sourceReg, imm8(0));
+                // mov      %destReg, 0
+                ins << MoveInstruction(destReg, imm16(0));
+                // movne    %destReg, 1
+                auto mov_ne = MoveInstruction(destReg, imm16(1));
+                mov_ne.setCondition(Instruction::Condition::Cond_NotEqual);
+                ins << std::move(mov_ne);
             };
 
             ins << DotInstruction(Instruction::DotInstruction::TEXT, "");
@@ -558,8 +568,8 @@ namespace Backend::Translator {
                                 /*
                                  * br       %cond, lb1, lb2
                                  *
-                                 * cmp      %cond, 1
-                                 * breq     lb1
+                                 * cmp      %cond, 0
+                                 * br_ne    lb1
                                  * br       lb2
                                  * */
                                 if (ops[0].getIrOpType() == IntermediateRepresentation::ImmVal) {
@@ -569,10 +579,10 @@ namespace Backend::Translator {
                                     else
                                         ins << BranchInstruction(B, ops[2].getStrValue());
                                 } else {
-                                    ins << ComparisonInstruction(CMP, mapping.at(ops[0]), Operands::Operand2(imm8(1)));
-                                    auto breq = BranchInstruction(B, ops[1].getStrValue());
-                                    breq.setCondition(Instruction::Condition::Cond_Equal);
-                                    ins << std::move(breq);
+                                    ins << ComparisonInstruction(CMP, mapping.at(ops[0]), Operands::Operand2(imm8(0)));
+                                    auto br_true = BranchInstruction(B, ops[1].getStrValue());
+                                    br_true.setCondition(Instruction::Condition::Cond_NotEqual);
+                                    ins << std::move(br_true);
                                     ins << BranchInstruction(B, ops[2].getStrValue());
                                 }
                             }
@@ -1077,16 +1087,23 @@ namespace Backend::Translator {
                         }
                             break;
                         case IntermediateRepresentation::AND: {
-//#warning "Imm8 not implemented"
+                            /*
+                             * and      %dest, %src1, %src2
+                             *
+                             * cmp
+                             * */
+                            auto sourceReg = mapping.at(ops[1]);
+                            castBool(sourceReg, sourceReg);
                             if (ops[2].getIrOpType() == IntermediateRepresentation::ImmVal) {
-                                int imm = ops[2].getValue();
-                                if (immNeedProc(imm, 8))
-                                    ins << BitInstruction(AND, mapping.at(ops[0]), mapping.at(ops[1]), loadImm(imm));
-                                else
-                                    ins << BitInstruction(AND, mapping.at(ops[0]), mapping.at(ops[1]), imm8(imm));
-//                                ins << BitInstruction(AND, mapping.at(ops[0]), mapping.at(ops[1]), imm8(ops[2].getValue()));
+                                int imm = ops[2].getValue() != 0;
+
+                                ins << BitInstruction(AND, mapping.at(ops[0]), sourceReg, imm8(imm));
                             } else {
-                                ins << BitInstruction(AND, mapping.at(ops[0]), mapping.at(ops[1]), mapping.at(ops[2]));
+                                auto sourceReg2 = mapping.at(ops[2]);
+
+                                castBool(sourceReg2, sourceReg2);
+                                // and      %sourceReg, %sourceReg2
+                                ins << BitInstruction(AND, mapping.at(ops[0]), sourceReg, sourceReg2);
                             }
                         }
                             break;
