@@ -53,12 +53,12 @@ namespace Backend::Translator {
         std::unique_ptr<ArmRegAllocator> allocator;
         std::unordered_map<std::string, std::string> globalPtrToVal;
 
-        void procGlobal(InstructionStream& textIns, InstructionStream& dataIns, std::unordered_map<std::string, std::string>& globalToLabel,
+        void procGlobal(InstructionStream& dataIns, std::unordered_map<std::string, std::string>& globalToLabel,
                         std::unordered_set<IntermediateRepresentation::IROperand>& globalSymbol) {
             auto& globalVar = irProgram.getGlobal();
             auto& globalArr = irProgram.getGlobalArrays();
 
-            InstructionStream ptrIns, valIns;
+            InstructionStream valIns;
 
             for (auto& var : globalVar) {
                 /**
@@ -84,7 +84,6 @@ namespace Backend::Translator {
                  if (ops[0].getIrDataType() == IntermediateRepresentation::i32) {
                      // global int
                      label_ptr = "__GLB_VAR_PTR_" + varName, label_val = "__GLB_VAR_" + varName;
-                     ptrIns << LabelInstruction(label_ptr) << DotInstruction(Instruction::DotInstruction::LONG, label_val);
                      if (ops.size() > 1)
                         valIns << LabelInstruction(label_val) << DotInstruction(Instruction::DotInstruction::LONG, static_cast<uint32_t> (ops[1].getValue()), false);
                      else
@@ -95,7 +94,6 @@ namespace Backend::Translator {
                      label_ptr = "__GLB_STR_PTR_" + varName, label_val = "__GLB_STR_" + varName;
                      if (ops.size() <= 1)
                          throw std::runtime_error("Invalid IR: global string definition must have a value");
-                     ptrIns << LabelInstruction(label_ptr) << DotInstruction(Instruction::DotInstruction::LONG, label_val);
                      valIns << LabelInstruction(label_val) << DotInstruction(Instruction::DotInstruction::ASCIZ, ops[1].getStrValue());
                  }
                  globalPtrToVal[label_ptr] = label_val;
@@ -105,9 +103,6 @@ namespace Backend::Translator {
 
             for (auto& arr : globalArr) {
                 /**
-                 * __GLB_ARR_PTR_xxx:
-                 *      .long __GLB_ARR_xxx
-                 *
                  * __GLB_ARR_xxx:
                  *      .zero <bytes>
                  *      .long <value>
@@ -117,7 +112,6 @@ namespace Backend::Translator {
                 globalPtrToVal[label_ptr] = label_val;
                 globalToLabel[arr.getArrayName()] = label_ptr;
                 globalSymbol.insert({ IntermediateRepresentation::i32, arr.getArrayName(), true });
-                ptrIns << LabelInstruction(label_ptr) << DotInstruction(Instruction::DotInstruction::LONG, label_val);
                 valIns << LabelInstruction(label_val);
                 auto& dataMap = arr.getData();
                 for (auto& data: dataMap) {
@@ -131,7 +125,6 @@ namespace Backend::Translator {
                 if (last_pos != size - 1)
                     valIns << DotInstruction(Instruction::DotInstruction::ZERO, (size - last_pos - 1) * 4, false);
             }
-            textIns.insert(textIns.end(), ptrIns.begin(), ptrIns.end());
             dataIns.insert(dataIns.end(), valIns.begin(), valIns.end());
         }
 
@@ -448,9 +441,12 @@ namespace Backend::Translator {
 
             auto loadImmTo = [&] (int imm, const Operands::Register& dest) {
                 uint32_t low = imm & 0x0000ffff, high = (imm & 0xffff0000) >> 16;
-                ins << MoveInstruction(dest, imm16(low), false, MoveInstruction::MovePosition::LOW);
-                if (high)
+                if (high) {
+                    ins << MoveInstruction(dest, imm16(low), false, MoveInstruction::MovePosition::LOW);
                     ins << MoveInstruction(dest, imm16(high), false, MoveInstruction::MovePosition::HIGH);
+                } else {
+                    ins << MoveInstruction(dest, imm16(low));
+                }
             };
 
             auto loadImm = [&] (int imm) {
@@ -473,7 +469,7 @@ namespace Backend::Translator {
             ins << DotInstruction(Instruction::DotInstruction::GLOBL, "main");
 
             // globalIns
-            procGlobal(ins, dataIns, globalMapping, globalSymbols);
+            procGlobal(dataIns, globalMapping, globalSymbols);
 
             for(auto& func : functions) {
                 auto stackLayout = Util::StackScheme { };
@@ -534,9 +530,6 @@ namespace Backend::Translator {
                 list.emplaceRegister(fp, lr);
                 ins << PushInstruction(list);
                 pushSize = list.getRegList().size();
-                // mov fp, sp
-                ins << MoveInstruction(fp, sp);
-                // sub sp, sp, #<stack_size>
                 size_t stackSize = stackLayout.getStackSize() + [&] () {
                     // get maximum function parameter count
                     /*
@@ -549,8 +542,13 @@ namespace Backend::Translator {
                     }
                     return ans;
                 } () * 4;
-                loadImmTo(stackSize, r9);
-                ins << SubtractionInstruction(sp, sp, r9);
+                if (stackSize) {
+                    // mov fp, sp
+                    ins << MoveInstruction(fp, sp);
+                    // sub sp, sp, #<stack_size>
+                    loadImmTo(stackSize, r9);
+                    ins << SubtractionInstruction(sp, sp, r9);
+                }
 //                for (size_t remainStackSize = stackSize; remainStackSize; ) {
 //                    int sub = (int) std::min(remainStackSize, (size_t) 1024);
 //                    ins << SubtractionInstruction(sp, sp, imm12(sub));
@@ -728,8 +726,10 @@ namespace Backend::Translator {
 
                             // Epilogue
                             // add      sp, sp #stack_size
-                            loadImmTo(stackSize, r9);
-                            ins << AdditionInstruction(sp, sp, r9);
+                            if (stackSize) {
+                                loadImmTo(stackSize, r9);
+                                ins << AdditionInstruction(sp, sp, r9);
+                            }
 //                            for (size_t remainStackSize = stackSize; remainStackSize; ) {
 //                                int sub = (int) std::min(remainStackSize, (size_t) 1024);
 //                                ins << AdditionInstruction(sp, sp, imm12(sub));
@@ -1141,7 +1141,6 @@ namespace Backend::Translator {
                     }
                 }
 
-                // TODO Imm Fix
             }
 
             // insert data segment
