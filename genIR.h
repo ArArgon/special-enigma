@@ -19,6 +19,7 @@ void trans_declaration(AST* a, bool isglobal);
 void trans_declaration_IR(AST* a, std::string type, bool isconst, bool isglobal);
 void pri_var(AST* a, std::string type, bool isconst, bool isglobal);
 void pri_array(AST* a, std::string type, bool isconst, bool isglobal);
+void pri_global_arr_init_list(AST* a, IntermediateRepresentation::IRArray& globalArray, std::vector<int> arrayIndex, int& position, int level);
 void pri_arr_init_list(AST* a, std::string s_name, std::vector<int> arrayIndex, int& index, int level);
 
 void trans_func_def(AST* a);
