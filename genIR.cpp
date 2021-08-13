@@ -1583,32 +1583,60 @@ void pri_no_return_func(AST* a)
                     int num = 1;
                     IntermediateRepresentation::IROperand ops_temp0(IntermediateRepresentation::i32, s_name, true);
                     IntermediateRepresentation::IROperand ops_temp1(IntermediateRepresentation::i32, getNewNameLocalVar(), true);
-                    int off = 0;
+                    //int off = 0;
+                    IntermediateRepresentation::IROperand ops_off_temp(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::IROperand ops_j;
                     while(!arr_list.empty())
                     {
                         temp = arr_list.top()->right;
                         arr_list.pop();
                         num++;
-                        int j;
                         if(temp->name == "CONSTANT")
                         {
-                            j = temp->value;
+                            IntermediateRepresentation::IROperand ops_num(IntermediateRepresentation::i32, temp->value);
+                            ops_j = ops_num;
                         }
                         else
                         {
-                            IntermediateRepresentation::IROperand ops_t = pri_exp(temp);
-                            if(ops_t.getIrOpType() == IntermediateRepresentation::ImmVal)
-                                j = ops_t.getValue();
-                            else
-                                std::cout << "12345" << std::endl;
+                            ops_j = pri_exp(temp);
                         }
+
+                        int size=1;
                         for(int i = num; i <= indexNum; i++)
                         {
-                            j *= tempTabVar.arrayIndex[i];
+                            size *= tempTabVar.arrayIndex[i];
                         }
-                        off += j;
+
+                        if(ops_j.getIrOpType() == IntermediateRepresentation::ImmVal)
+                        {
+                            int num = ops_j.getValue();
+                            ops_j.setValue(num*size);
+                        }
+                        else
+                        {
+                            IntermediateRepresentation::IROperand ops_temp(IntermediateRepresentation::i32, getNewNameLocalVar());
+                            IntermediateRepresentation::IROperand ops_size(IntermediateRepresentation::i32, size);
+                            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MUL, IntermediateRepresentation::i32, ops_temp, ops_j, ops_size);
+                            my_function->insertStatement(tempVar);
+                            ops_j = ops_temp;
+                        }
+
+                        if(num == 2)
+                        {
+                            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, ops_off_temp, ops_j);
+                            my_function->insertStatement(tempVar);
+                        }
+                        else
+                        {
+                            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ADD, IntermediateRepresentation::i32, ops_off_temp, ops_off_temp, ops_j);
+                            my_function->insertStatement(tempVar);
+                        }
                     }
-                    IntermediateRepresentation::IROperand ops_off(IntermediateRepresentation::i32, off*4);
+                    IntermediateRepresentation::IROperand ops_off(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::IROperand ops_Imm4(IntermediateRepresentation::i32, 4);
+                    IntermediateRepresentation::Statement tempVar1(IntermediateRepresentation::MUL, IntermediateRepresentation::i32, ops_off, ops_off_temp, ops_Imm4);
+                    my_function->insertStatement(tempVar1);
+
                     IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ADD, IntermediateRepresentation::i32, ops_temp1, ops_temp0, ops_off);
                     my_function->insertStatement(tempVar);
 
@@ -1714,32 +1742,60 @@ IntermediateRepresentation::IROperand pri_return_func(AST* a)
                     int num = 1;
                     IntermediateRepresentation::IROperand ops_temp0(IntermediateRepresentation::i32, s_name, true);
                     IntermediateRepresentation::IROperand ops_temp1(IntermediateRepresentation::i32, getNewNameLocalVar(), true);
-                    int off = 0;
+                    //int off = 0;
+                    IntermediateRepresentation::IROperand ops_off_temp(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::IROperand ops_j;
                     while(!arr_list.empty())
                     {
                         temp = arr_list.top()->right;
                         arr_list.pop();
                         num++;
-                        int j;
                         if(temp->name == "CONSTANT")
                         {
-                            j = temp->value;
+                            IntermediateRepresentation::IROperand ops_num(IntermediateRepresentation::i32, temp->value);
+                            ops_j = ops_num;
                         }
                         else
                         {
-                            IntermediateRepresentation::IROperand ops_t = pri_exp(temp);
-                            if(ops_t.getIrOpType() == IntermediateRepresentation::ImmVal)
-                                j = ops_t.getValue();
-                            else
-                                std::cout << "12345" << std::endl;
+                            ops_j = pri_exp(temp);
                         }
+
+                        int size=1;
                         for(int i = num; i <= indexNum; i++)
                         {
-                            j *= tempTabVar.arrayIndex[i];
+                            size *= tempTabVar.arrayIndex[i];
                         }
-                        off += j;
+
+                        if(ops_j.getIrOpType() == IntermediateRepresentation::ImmVal)
+                        {
+                            int num = ops_j.getValue();
+                            ops_j.setValue(num*size);
+                        }
+                        else
+                        {
+                            IntermediateRepresentation::IROperand ops_temp(IntermediateRepresentation::i32, getNewNameLocalVar());
+                            IntermediateRepresentation::IROperand ops_size(IntermediateRepresentation::i32, size);
+                            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MUL, IntermediateRepresentation::i32, ops_temp, ops_j, ops_size);
+                            my_function->insertStatement(tempVar);
+                            ops_j = ops_temp;
+                        }
+
+                        if(num == 2)
+                        {
+                            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::MOV, IntermediateRepresentation::i32, ops_off_temp, ops_j);
+                            my_function->insertStatement(tempVar);
+                        }
+                        else
+                        {
+                            IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ADD, IntermediateRepresentation::i32, ops_off_temp, ops_off_temp, ops_j);
+                            my_function->insertStatement(tempVar);
+                        }
                     }
-                    IntermediateRepresentation::IROperand ops_off(IntermediateRepresentation::i32, off*4);
+                    IntermediateRepresentation::IROperand ops_off(IntermediateRepresentation::i32, getNewNameLocalVar());
+                    IntermediateRepresentation::IROperand ops_Imm4(IntermediateRepresentation::i32, 4);
+                    IntermediateRepresentation::Statement tempVar1(IntermediateRepresentation::MUL, IntermediateRepresentation::i32, ops_off, ops_off_temp, ops_Imm4);
+                    my_function->insertStatement(tempVar1);
+
                     IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ADD, IntermediateRepresentation::i32, ops_temp1, ops_temp0, ops_off);
                     my_function->insertStatement(tempVar);
 
