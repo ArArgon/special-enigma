@@ -1577,9 +1577,60 @@ void pri_no_return_func(AST* a)
             }
             else
             {
-                index++;
-                IntermediateRepresentation::IROperand my_ops_more = pri_exp(temp);
-                my_ops.push_back(my_ops_more);
+                if(value[index]==1)
+                {
+                    index++;
+                    IntermediateRepresentation::IROperand my_ops_more = pri_exp(temp);
+                    my_ops.push_back(my_ops_more);
+                }
+                else if(value[index]==0)
+                {
+                    index++;
+                    std::stack<AST*> arr_list;
+                    while(temp)
+                    {
+                        arr_list.push(temp);
+                        temp = temp->left;
+                    }
+                    std::string name = arr_list.top()->content;
+                    arr_list.pop();
+                    symbalTableMember tempTabVar = symTab->find(name, symbalTableMember::ARRAY);
+                    std::string s_name = symTab->find_name(name, symbalTableMember::ARRAY);
+                    int indexNum = tempTabVar.arrayIndex[0];
+                    int num = 1;
+                    IntermediateRepresentation::IROperand ops_temp0(IntermediateRepresentation::i32, s_name, true);
+                    IntermediateRepresentation::IROperand ops_temp1(IntermediateRepresentation::i32, getNewNameLocalVar(), true);
+                    int off = 0;
+                    while(!arr_list.empty())
+                    {
+                        temp = arr_list.top()->right;
+                        arr_list.pop();
+                        num++;
+                        int j;
+                        if(temp->name == "CONSTANT")
+                        {
+                            j = temp->value;
+                        }
+                        else
+                        {
+                            IntermediateRepresentation::IROperand ops_t = pri_exp(temp);
+                            if(ops_t.getIrOpType() == IntermediateRepresentation::ImmVal)
+                                j = ops_t.getValue();
+                            else
+                                std::cout << "12345" << std::endl;
+                        }
+                        for(int i = num; i <= indexNum; i++)
+                        {
+                            j *= tempTabVar.arrayIndex[i];
+                        }
+                        off += j;
+                    }
+                    IntermediateRepresentation::IROperand ops_off(IntermediateRepresentation::i32, off*4);
+                    IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ADD, IntermediateRepresentation::i32, ops_temp1, ops_temp0, ops_off);
+                    my_function->insertStatement(tempVar);
+
+                    my_ops.push_back(ops_temp1);
+                }
             }
             
         }
@@ -1657,9 +1708,65 @@ IntermediateRepresentation::IROperand pri_return_func(AST* a)
             }
             else
             {
-                index++;
-                IntermediateRepresentation::IROperand my_ops_more = pri_exp(temp);
-                my_ops.push_back(my_ops_more);
+                if(value[index]==1) //int
+                {
+                    index++;
+                    IntermediateRepresentation::IROperand my_ops_more = pri_exp(temp);
+                    my_ops.push_back(my_ops_more);
+                }
+                else if(value[index]==0)
+                {
+                    index++;
+                    std::stack<AST*> arr_list;
+                    while(temp)
+                    {
+                        arr_list.push(temp);
+                        temp = temp->left;
+                    }
+                    std::string name = arr_list.top()->content;
+                    arr_list.pop();
+                    symbalTableMember tempTabVar = symTab->find(name, symbalTableMember::ARRAY);
+                    std::string s_name = symTab->find_name(name, symbalTableMember::ARRAY);
+                    int indexNum = tempTabVar.arrayIndex[0];
+                    int num = 1;
+                    IntermediateRepresentation::IROperand ops_temp0(IntermediateRepresentation::i32, s_name, true);
+                    IntermediateRepresentation::IROperand ops_temp1(IntermediateRepresentation::i32, getNewNameLocalVar(), true);
+                    int off = 0;
+                    while(!arr_list.empty())
+                    {
+                        temp = arr_list.top()->right;
+                        arr_list.pop();
+                        num++;
+                        int j;
+                        if(temp->name == "CONSTANT")
+                        {
+                            j = temp->value;
+                        }
+                        else
+                        {
+                            IntermediateRepresentation::IROperand ops_t = pri_exp(temp);
+                            if(ops_t.getIrOpType() == IntermediateRepresentation::ImmVal)
+                                j = ops_t.getValue();
+                            else
+                                std::cout << "12345" << std::endl;
+                        }
+                        for(int i = num; i <= indexNum; i++)
+                        {
+                            j *= tempTabVar.arrayIndex[i];
+                        }
+                        off += j;
+                    }
+                    IntermediateRepresentation::IROperand ops_off(IntermediateRepresentation::i32, off*4);
+                    IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ADD, IntermediateRepresentation::i32, ops_temp1, ops_temp0, ops_off);
+                    my_function->insertStatement(tempVar);
+
+                    my_ops.push_back(ops_temp1);
+                }
+                else
+                {
+                    std::cout << "error at trans_block func_postfix_expression no type" << std::endl;
+                    exit(-1);
+                }
             }
 
         }
