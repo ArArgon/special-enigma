@@ -155,7 +155,7 @@ namespace Backend::Flow {
                 if (ops[0].getIrOpType() == IntermediateRepresentation::Var)
                     ans.def.insert(ops[0]);
                 int len = ops.size();
-                for (int i = 2; i <= std::min(5, len - 1); i++) {
+                for (int i = 2; i < len; i++) {
                     if (ops[i].getIrOpType() == IntermediateRepresentation::Var)
                         ans.use.insert(ops[i]);
                 }
