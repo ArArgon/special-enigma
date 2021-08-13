@@ -24,10 +24,11 @@ IntermediateRepresentation::IRProgram* genIR(AST *astRoot)
     my_global = new std::vector<IntermediateRepresentation::Statement>;
     my_functions = new std::vector<IntermediateRepresentation::Function>;
     my_globalArrays = new std::vector<IntermediateRepresentation::IRArray>;
-
+    
     std::stack<AST*> astStack;
     AST *temp = astRoot;
-
+    sysy_runingtime_func_init();
+    
     while(temp){    //语法树节点入栈
         astStack.push(temp);
         temp=temp->left;
@@ -455,11 +456,13 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             IntermediateRepresentation::IROperand my_ops1(IntermediateRepresentation::i32, arrSize);
             IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ALLOCA, IntermediateRepresentation::i32, my_ops0, my_ops1);
             my_function->insertStatement(tempVar);
+            /*
             IntermediateRepresentation::IROperand my_dest;
             IntermediateRepresentation::IROperand ops_num0(IntermediateRepresentation::i32, 0);
             IntermediateRepresentation::IROperand ops_memset("memset");
             IntermediateRepresentation::Statement tempVar1(IntermediateRepresentation::CALL, IntermediateRepresentation::t_void, my_dest, ops_memset, my_ops0, ops_num0, my_ops1);
             my_function->insertStatement(tempVar1);
+            */
 
             symbalTableMember symTabM;
             symTabM.init(s_name, name, symbalTableMember::ARRAY, symTabLevel);
@@ -2361,4 +2364,44 @@ std::string getNewLabel()
     std::string label = "label_"+std::to_string(labelNum);
 
     return label;
+}
+
+void sysy_runingtime_func_init()
+{
+    symbalTableMember symTabM1;
+    symTabM1.init("getint", "getint", symbalTableMember::FUNC, 0);
+    symTab->addFunc(symTabM1);
+
+    symbalTableMember symTabM2;
+    symTabM2.init("getch", "getch", symbalTableMember::FUNC, 0);
+    symTab->addFunc(symTabM2);
+
+    symbalTableMember symTabM3;
+    symTabM3.init("getarray", "getarray", symbalTableMember::FUNC, 0);
+    std::vector<int> value3;
+    value3.push_back(0); 
+    symTabM3.value = value3;
+    symTab->addFunc(symTabM3);
+
+    symbalTableMember symTabM4;
+    symTabM4.init("putint", "putint", symbalTableMember::FUNC, 0);
+    std::vector<int> value4;
+    value4.push_back(1);
+    symTabM4.value = value4;
+    symTab->addFunc(symTabM4);
+
+    symbalTableMember symTabM5;
+    symTabM5.init("putch", "putch", symbalTableMember::FUNC, 0);
+    std::vector<int> value5;
+    value5.push_back(1);
+    symTabM5.value = value5;
+    symTab->addFunc(symTabM5);
+
+    symbalTableMember symTabM6;
+    symTabM6.init("putarray", "putarray", symbalTableMember::FUNC, 0);
+    std::vector<int> value6;
+    value6.push_back(1);
+    value6.push_back(0);
+    symTabM6.value = value6;
+    symTab->addFunc(symTabM6);
 }

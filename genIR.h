@@ -41,4 +41,5 @@ void pri_LVal_arr_postfix_expression(AST* LVal, AST* exp);
 
 std::string getNewNameLocalVar();
 std::string getNewLabel();
+void sysy_runingtime_func_init();
 #endif
