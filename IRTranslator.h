@@ -588,7 +588,7 @@ namespace Backend::Translator {
                                 ins << AdditionInstruction(dest, opr1, mapping.at(ops[2]));
                             else {
                                 int imm = ops[2].getValue();
-                                if (immNeedProc(imm, 12))
+                                if (immNeedProc(imm, 8))
                                     ins << AdditionInstruction(dest, opr1, Operands::Operand2(loadImm(imm)));
                                 else
                                     ins << AdditionInstruction(dest, opr1, imm12(imm));
@@ -634,7 +634,7 @@ namespace Backend::Translator {
                                     ins << SubtractionInstruction(dest, opr1, mapping.at(ops[2]));
                                 else {
                                     int imm = ops[2].getValue();
-                                    if (immNeedProc(imm, 12))
+                                    if (immNeedProc(imm, 8))
                                         ins << SubtractionInstruction(dest, opr1, Operands::Operand2(loadImm(imm)));
                                     else
                                         ins << SubtractionInstruction(dest, opr1, imm12(imm));
