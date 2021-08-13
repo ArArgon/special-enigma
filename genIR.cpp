@@ -455,11 +455,13 @@ void pri_array(AST* a, std::string type, bool isconst, bool isglobal)
             IntermediateRepresentation::IROperand my_ops1(IntermediateRepresentation::i32, arrSize);
             IntermediateRepresentation::Statement tempVar(IntermediateRepresentation::ALLOCA, IntermediateRepresentation::i32, my_ops0, my_ops1);
             my_function->insertStatement(tempVar);
+            /*
             IntermediateRepresentation::IROperand my_dest;
             IntermediateRepresentation::IROperand ops_num0(IntermediateRepresentation::i32, 0);
             IntermediateRepresentation::IROperand ops_memset("memset");
             IntermediateRepresentation::Statement tempVar1(IntermediateRepresentation::CALL, IntermediateRepresentation::t_void, my_dest, ops_memset, my_ops0, ops_num0, my_ops1);
             my_function->insertStatement(tempVar1);
+            */
 
             symbalTableMember symTabM;
             symTabM.init(s_name, name, symbalTableMember::ARRAY, symTabLevel);
