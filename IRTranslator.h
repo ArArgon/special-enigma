@@ -128,7 +128,7 @@ namespace Backend::Translator {
                     auto& pos = data.first;
                     auto& value = data.second;
                     if (pos - last_pos > 1)
-                        valIns << DotInstruction(DotInstruction::ZERO, (pos - last_pos) * 4, false);
+                        valIns << DotInstruction(DotInstruction::ZERO, (pos - last_pos - 1) * 4, false);
                     valIns << DotInstruction(DotInstruction::WORD, static_cast<uint32_t>(value), false);
                     last_pos = pos;
                 }
