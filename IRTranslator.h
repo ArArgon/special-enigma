@@ -1146,13 +1146,13 @@ namespace Backend::Translator {
                             break;
                         case IntermediateRepresentation::NOT: {
                             /*
-                             * not      %dest
+                             * not      %dest, %src
                              * cmp      %dest, 0
                              * moveq    %dest, 1
                              * movne    %dest, 0
                              * */
-                            auto dest = mapping.at(ops[0]);
-                            ins << ComparisonInstruction(CMP, dest, imm8(0));
+                            auto dest = mapping.at(ops[0]), src = mapping.at(ops[1]);
+                            ins << ComparisonInstruction(CMP, src, imm8(0));
                             auto moveq = MoveInstruction(dest, imm8(1)), movne = MoveInstruction(dest, imm8(0));
                             moveq.setCondition(Instruction::Condition::Cond_Equal);
                             movne.setCondition(Instruction::Condition::Cond_NotEqual);
