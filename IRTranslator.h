@@ -364,10 +364,11 @@ namespace Backend::Translator {
                     if (paramCount > 4) {
                         for (int i = 6; i <= paramCount + 1; i++) {
                             // insert before
-                            // stk_str      %replaceList[i], #paramOpr[i].getValue()
+                            // stk_str      [%replaceList[i], #paramOpr[i].getValue()]
                             it = stmts.insert(it, {
                                 IntermediateRepresentation::STK_STR, IntermediateRepresentation::i32, replaceList[i],
-                                IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, paramOpr[i - 2].getValue())
+                                IntermediateRepresentation::IROperand(IntermediateRepresentation::i32, 1 + paramOpr[i - 2].getValue()),
+                                IntermediateRepresentation::IROperand()
                             }) + 1;
                         }
                     }
