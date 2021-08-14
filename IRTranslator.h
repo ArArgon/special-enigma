@@ -1147,7 +1147,7 @@ namespace Backend::Translator {
                         case IntermediateRepresentation::NOT: {
                             /*
                              * not      %dest, %src
-                             * cmp      %dest, 0
+                             * cmp      %src, 0
                              * moveq    %dest, 1
                              * movne    %dest, 0
                              * */
