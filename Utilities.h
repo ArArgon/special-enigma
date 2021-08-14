@@ -34,7 +34,7 @@ namespace Backend::Util {
 
     template<class NodeType>
     class Graph {
-        static constexpr size_t defaultSize = 200;
+        static constexpr size_t defaultSize = 2000;
 
         size_t cnt = 0;
         std::vector<std::vector<size_t>*> G;

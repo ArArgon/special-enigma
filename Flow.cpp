@@ -13,8 +13,10 @@ namespace Backend::Flow {
 
         // divide basic blocks
         auto newBB = [&] (bb_ptr_t& block, bool createAnother = true) {
-            basicBlocks.push_back(block);
-            cfg.newNode(block);
+            if (!block->statements.empty()) {
+                basicBlocks.push_back(block);
+                cfg.newNode(block);
+            }
             if (createAnother)
                 block = std::make_shared<BasicBlock>(BasicBlock());
         };
