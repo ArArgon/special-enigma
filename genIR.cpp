@@ -696,7 +696,7 @@ void trans_param(AST* a, std::string func_name, std::vector<int> &value)
                 symbalTableMember symTabM;
                 symTabM.init(s_name, name, symbalTableMember::ARRAY, 1);
                 symTabM.arrayIndex = arrayIndex;
-                symTab->addLocalVar(symTabM);
+                symTab->addGlobalVar(symTabM);
             }
         }
 
@@ -2488,4 +2488,18 @@ void sysy_runingtime_func_init()
     value6.push_back(0);
     symTabM6.value = value6;
     symTab->addFunc(symTabM6);
+
+    symbalTableMember symTabM7;
+    symTabM7.init("_sysy_starttime", "_sysy_starttime", symbalTableMember::FUNC, 0);
+    std::vector<int> value7;
+    value7.push_back(1);
+    symTabM7.value = value7;
+    symTab->addFunc(symTabM7);
+
+    symbalTableMember symTabM8;
+    symTabM8.init("_sysy_stoptime", "_sysy_stoptime", symbalTableMember::FUNC, 0);
+    std::vector<int> value8;
+    value8.push_back(1);
+    symTabM8.value = value8;
+    symTab->addFunc(symTabM8);
 }

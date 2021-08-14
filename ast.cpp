@@ -56,7 +56,13 @@ struct AST *new_node(std::string name,int num,...)
         }
         else
         {
-            newnode->content = yytext;
+            std::string yycontent = yytext;
+            if(yycontent == "starttime")
+                newnode->content = "_sysy_starttime";
+            else if(yycontent == "stoptime")
+                newnode->content = "_sysy_stoptime";
+            else
+                newnode->content = yycontent;
         }
     }
 
