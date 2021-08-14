@@ -67,15 +67,11 @@ namespace Backend::Translator {
                  * global_xx    i32 %var, <int>
                  * global_xx    str %var, "<str>"
                  *
-                 * __GLB_VAR_PTR_xxx:
-                 *      .long   __GLB_VAR_xxx
                  * __GLB_VAR_xxx:
                  *      .long   <value>
                  *
                  *
                  * global string
-                 * __GLB_STR_PTR_xxx:
-                 *      .long   __GLB_STR_xxx
                  * __GLB_STR_xxx:
                  *      .asciz  "<value>"
                  * */
@@ -103,6 +99,10 @@ namespace Backend::Translator {
 
             for (auto& arr : globalArr) {
                 /**
+                 * .global  __GLB_ARR_xxx
+                 * .align   2
+                 * .type    __GLB_ARR_xxx, %object
+                 * .size    __GLB_ARR_xxx, <size>
                  * __GLB_ARR_xxx:
                  *      .zero <bytes>
                  *      .long <value>
@@ -112,6 +112,16 @@ namespace Backend::Translator {
                 globalPtrToVal[label_ptr] = label_val;
                 globalToLabel[arr.getArrayName()] = label_ptr;
                 globalSymbol.insert({ IntermediateRepresentation::i32, arr.getArrayName(), true });
+
+                // .global  __GLB_ARR_xxx
+                valIns << DotInstruction(Instruction::DotInstruction::GLOBL, label_val);
+                // .align   2
+                valIns << DotInstruction("align", "2");
+                // .type    __GLB_ARR_xxx, %object
+                valIns << DotInstruction("type", label_val + ", %object");
+                // .size    __GLB_ARR_xxx, <size>
+                valIns << DotInstruction("size", label_val + ", " + std::to_string(size * 4));
+
                 valIns << LabelInstruction(label_val);
                 auto& dataMap = arr.getData();
                 for (auto& data: dataMap) {
@@ -466,11 +476,18 @@ namespace Backend::Translator {
                 ins << std::move(mov_ne);
             };
 
-            ins << DotInstruction(Instruction::DotInstruction::TEXT, "");
-            ins << DotInstruction(Instruction::DotInstruction::GLOBL, "main");
-
             // globalIns
             procGlobal(dataIns, globalMapping, globalSymbols);
+
+            // insert data segment
+            if (!dataIns.empty()) {
+                ins << DotInstruction(Instruction::DotInstruction::DATA, "");
+                ins.insert(ins.end(), dataIns.begin(),  dataIns.end());
+                //                ins << DotInstruction(Instruction::DotInstruction::END, "");
+            }
+
+            // text segment
+            ins << DotInstruction(Instruction::DotInstruction::TEXT, "");
 
             for(auto& func : functions) {
                 auto stackLayout = Util::StackScheme { };
@@ -525,6 +542,11 @@ namespace Backend::Translator {
                 /*
                  * function init
                  * */
+                // .global  <funcName>
+                // .align   2
+                ins << DotInstruction(Instruction::DotInstruction::GLOBL, func.getFunName());
+                ins << DotInstruction("align", "2");
+
                 // <funcName>:
                 ins << LabelInstruction(func.getFunName());
                 // push { rx, rx, ..., fp, lr }
@@ -562,7 +584,7 @@ namespace Backend::Translator {
                         case IntermediateRepresentation::BR: {
                             if (ops.size() == 1) {
                                 // b %label
-                                ins << BranchInstruction(B, ops[0].getStrValue());
+                                ins << BranchInstruction(B, "." + ops[0].getStrValue());
                             } else {
                                 /*
                                  * br       %cond, lb1, lb2
@@ -574,15 +596,15 @@ namespace Backend::Translator {
                                 if (ops[0].getIrOpType() == IntermediateRepresentation::ImmVal) {
                                     int imm = ops[0].getValue();
                                     if (imm)
-                                        ins << BranchInstruction(B, ops[1].getStrValue());
+                                        ins << BranchInstruction(B, "." + ops[1].getStrValue());
                                     else
-                                        ins << BranchInstruction(B, ops[2].getStrValue());
+                                        ins << BranchInstruction(B, "." + ops[2].getStrValue());
                                 } else {
                                     ins << ComparisonInstruction(CMP, mapping.at(ops[0]), Operands::Operand2(imm8(0)));
-                                    auto br_true = BranchInstruction(B, ops[1].getStrValue());
+                                    auto br_true = BranchInstruction(B, "." + ops[1].getStrValue());
                                     br_true.setCondition(Instruction::Condition::Cond_NotEqual);
                                     ins << std::move(br_true);
-                                    ins << BranchInstruction(B, ops[2].getStrValue());
+                                    ins << BranchInstruction(B, "." + ops[2].getStrValue());
                                 }
                             }
                         }
@@ -760,7 +782,7 @@ namespace Backend::Translator {
                         }
                             break;
                         case IntermediateRepresentation::LABEL: {
-                            ins << LabelInstruction(ops[0].getStrValue());
+                            ins << LabelInstruction("." + ops[0].getStrValue());
                         }
                             break;
                         case IntermediateRepresentation::ALLOCA: {
@@ -1144,12 +1166,6 @@ namespace Backend::Translator {
 
             }
 
-            // insert data segment
-            if (!dataIns.empty()) {
-                ins << DotInstruction(Instruction::DotInstruction::DATA, "");
-                ins.insert(ins.end(), dataIns.begin(),  dataIns.end());
-                ins << DotInstruction(Instruction::DotInstruction::END, "");
-            }
             return ins;
         }
     };

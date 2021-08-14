@@ -133,13 +133,13 @@ namespace Instruction {
     class DotInstruction : public MachineInstruction {
     public:
         enum DotType {
-            BYTE, BYTE_2, BYTE_4, BYTE_8, ASCII, ASCIZ, LONG, WORD, ZERO, GLOBL, TEXT, DATA, END
+            BYTE, BYTE_2, BYTE_4, BYTE_8, ASCII, ASCIZ, LONG, WORD, ZERO, GLOBL, TEXT, DATA, END, CUSTOM
         };
     private:
         DotType dotType;
         uint32_t bValue;
         bool isStr;
-        std::string sValue;
+        std::string sValue, customDot;
         static constexpr DotType byte_to_dir[] = {
                 BYTE, BYTE, BYTE_2, BYTE_4, BYTE_4, BYTE_8, BYTE_8, BYTE_8, BYTE_8
         };
@@ -147,6 +147,8 @@ namespace Instruction {
         DotInstruction(DotType dotType, const std::string &sValue) : dotType(dotType), sValue(sValue), isStr(true) { }
 
         DotInstruction(DotType dotType, uint32_t bValue, bool isStr) : dotType(dotType), bValue(bValue), isStr(false) { }
+
+        DotInstruction(std::string customDot, std::string sValue) : dotType(CUSTOM), customDot(customDot), sValue(sValue), isStr(true) { }
 
         DotInstruction(size_t len, uint64_t bValue) : bValue(bValue) {
             isStr = false;
@@ -223,6 +225,9 @@ namespace Instruction {
                 case END:
                     ins = ".end";
                     break;
+                case CUSTOM:
+                    ins = "." + customDot;
+                    break;
             }
             std::string opr;
             if (isStr) {
@@ -231,8 +236,7 @@ namespace Instruction {
                     opr.insert(opr.begin(), '"');
                     opr.insert(opr.end(), '"');
                 }
-            }
-            else
+            } else
                 opr = std::to_string(bValue);
             return Utilities::ASMFormatter(ins, opr).toASM();
         }
