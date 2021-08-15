@@ -1,6 +1,7 @@
 %code requires{
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include "ast.h"
 
 extern AST *astRoot;
@@ -215,7 +216,42 @@ unary_expression:
 postfix_expression: 
 	primary_expression {$$=$1;}
 	| postfix_expression "[" expression "]" {$$=new_node("arr_postfix_expression",1,$1); $$->right=$3;}
-	| postfix_expression "(" ")" {$$=new_node("func_postfix_expression",1,$1); $$->right=NULL;}
+	| postfix_expression "(" ")" 
+	                            {
+									$$=new_node("func_postfix_expression",1,$1); $$->right=NULL;
+	                                if($1->content == "_sysy_starttime")
+									{
+										struct AST *newnode1 = new AST;
+										newnode1->name = "argument_expression_list";
+										newnode1->left = NULL;
+										newnode1->line = $1->line;
+										$$->right = newnode1;
+
+										struct AST *newnode2 = new AST;
+										newnode2->name = "CONSTANT";
+										newnode2->value = $1->line;
+										newnode2->left = NULL;
+										newnode2->right = NULL;
+										newnode2->line = $1->line;
+										newnode1->right = newnode2;
+									}
+									else if($1->content == "_sysy_stoptime")
+									{
+										struct AST *newnode1 = new AST;
+										newnode1->name = "argument_expression_list";
+										newnode1->left = NULL;
+										newnode1->line = $1->line;
+										$$->right = newnode1;
+
+										struct AST *newnode2 = new AST;
+										newnode2->name = "CONSTANT";
+										newnode2->value = $1->line;
+										newnode2->left = NULL;
+										newnode2->right = NULL;
+										newnode2->line = $1->line;
+										newnode1->right = newnode2;
+									}
+								}
 	| postfix_expression "(" argument_expression_list ")" {$$=new_node("func_postfix_expression",1,$1); $$->right=$3;}
     ;
 
