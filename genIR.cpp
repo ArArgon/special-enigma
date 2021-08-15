@@ -696,7 +696,7 @@ void trans_param(AST* a, std::string func_name, std::vector<int> &value)
                 symbalTableMember symTabM;
                 symTabM.init(s_name, name, symbalTableMember::ARRAY, 1);
                 symTabM.arrayIndex = arrayIndex;
-                symTab->addGlobalVar(symTabM);
+                symTab->addLocalVar(symTabM);
             }
         }
 
