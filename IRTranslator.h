@@ -81,7 +81,7 @@ namespace Backend::Translator {
                      // global int
                      label_ptr = "__GLB_VAR_PTR_" + varName, label_val = "__GLB_VAR_" + varName;
                      if (ops.size() > 1)
-                        valIns << LabelInstruction(label_val) << DotInstruction(Instruction::DotInstruction::LONG, static_cast<uint32_t> (ops[1].getValue()), false);
+                         valIns << LabelInstruction(label_val) << DotInstruction(Instruction::DotInstruction::LONG, static_cast<uint32_t> (ops[1].getValue()), false);
                      else
                          valIns << LabelInstruction(label_val) << DotInstruction(Instruction::DotInstruction::LONG, static_cast<uint32_t> (0), false);
                  } else if (ops[0].getIrDataType() == IntermediateRepresentation::str){
@@ -107,7 +107,7 @@ namespace Backend::Translator {
                  *      .zero <bytes>
                  *      .long <value>
                  * */
-                size_t last_pos = 0, size = arr.getArrSize();
+                int64_t last_pos = -1, size = arr.getArrSize();
                 std::string label_val = "__GLB_ARR_" + arr.getArrayName(), label_ptr = "__GLB_ARR_PTR_" + arr.getArrayName();
                 globalPtrToVal[label_ptr] = label_val;
                 globalToLabel[arr.getArrayName()] = label_ptr;
