@@ -683,7 +683,23 @@ void trans_param(AST* a, std::string func_name, std::vector<int> &value)
                     param_arr_list.pop();
                     if(temp)
                     {
-                        arrayIndex.push_back(temp->value);
+                        if(temp->name == "CONSTANT")
+                        {
+                            arrayIndex.push_back(temp->value);
+                        }
+                        else
+                        {
+                            IntermediateRepresentation::IROperand ops_Imm = pri_const_var_exp(temp, 1);
+                            if(ops_Imm.getIrOpType() == IntermediateRepresentation::ImmVal)
+                            {
+                                int temp_value = ops_Imm.getValue();
+                                arrayIndex.push_back(temp_value);
+                            }
+                            else
+                            {
+                                std::cout<<"not find param array index id"<<std::endl;
+                            }
+                        }
                     }
                     else
                     {
