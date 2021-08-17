@@ -399,8 +399,7 @@ namespace Instruction {
         }
     };
 
-    class
-    SubtractionInstruction : public ArithmeticProto {
+    class SubtractionInstruction : public ArithmeticProto {
         using ArithmeticProto::ArithmeticProto;
         std::string asm_name() const override {
             return "sub";
