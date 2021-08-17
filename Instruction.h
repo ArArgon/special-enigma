@@ -399,7 +399,8 @@ namespace Instruction {
         }
     };
 
-    class SubtractionInstruction : public ArithmeticProto {
+    class
+    SubtractionInstruction : public ArithmeticProto {
         using ArithmeticProto::ArithmeticProto;
         std::string asm_name() const override {
             return "sub";
@@ -643,6 +644,14 @@ namespace Instruction {
         MoveInstruction(const Operands::Register &destReg, const Operands::ImmediateNumber<16> &resImm16, bool update, MovePosition position)
                 : destReg(destReg), resImm16(resImm16), update(update), isOpr2(false), position(position) { }
 
+        Operands::Register getTarget() const {
+            return destReg;
+        }
+
+        Operands::Operand2 getSource() const {
+            return resOpr2;
+        }
+
         std::string toASM() const override {
             std::string ins = "mov", opr;
             if (position == HIGH)
@@ -679,6 +688,14 @@ namespace Instruction {
 
         LoadSaveProto(BitSize bitSize, Operands::Register target, Operands::LoadSaveOperand source)
                 : bitSize(bitSize), target(std::move(target)), source(std::move(source)) { }
+
+        Operands::Register getTarget() const {
+            return target;
+        }
+
+        Operands::LoadSaveOperand getSource() const {
+            return source;
+        }
 
         std::string toASM() const override {
             std::string ins = protoName();
