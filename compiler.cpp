@@ -7,6 +7,7 @@
 #include "IRTranslator.h"
 #include "RegisterAllocation.h"
 #include "NoRegisterAllocation.h"
+#include "PeepholeOptimization.h"
 #include "RegisterAllocationRefactor.h"
 
 bool isDebug;
@@ -19,7 +20,7 @@ void runner(const IntermediateRepresentation::IRProgram& irProgram, std::ostream
         exit(-1);
     }
     try {
-        auto ins = translator.doTranslation();
+        auto ins = DoScan(translator.doTranslation());
         for (const auto& var : ins)
             os << *var << std::endl;
     } catch (const std::runtime_error& e) {

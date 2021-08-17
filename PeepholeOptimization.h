@@ -1,17 +1,20 @@
 #ifndef SYSYBACKEND_PEEPHOLEOPTIMIZATION_H
 #define SYSYBACKEND_PEEPHOLEOPTIMIZATION_H
 
+#include <utility>
+
 #include "Instruction.h"
 
 Instruction::InstructionStream DoScan(Instruction::InstructionStream RefStream) {
 
-    Instruction::InstructionStream instruction = RefStream;
+    Instruction::InstructionStream instruction = std::move(RefStream);
 
     std::map<std::string, size_t> instructionNameSet;
-    instructionNameSet[typeid(Instruction::LabelInstruction).name()] = 0; //Lable Name
-    instructionNameSet[typeid(Instruction::LoadInstruction).name()] = 1; //Load Name
-    instructionNameSet[typeid(Instruction::SaveInstruction).name()] = 2; //Save Name
-    instructionNameSet[typeid(Instruction::MoveInstruction).name()] = 3; //Save Name
+    instructionNameSet[typeid(Instruction::LabelInstruction).name()] = 0;   // Label Name
+    instructionNameSet[typeid(Instruction::LoadInstruction).name()] = 1;    // Load Name
+    instructionNameSet[typeid(Instruction::SaveInstruction).name()] = 2;    // Save Name
+    instructionNameSet[typeid(Instruction::MoveInstruction).name()] = 3;    // Save Name'
+    instructionNameSet[typeid(Instruction::BranchInstruction).name()] = 4;  // Branch Name
 
     for (int i = 0; i < 1; i++) {
         for (auto it = instruction.begin(); it != instruction.end(); it++) {
@@ -83,8 +86,8 @@ Instruction::InstructionStream DoScan(Instruction::InstructionStream RefStream) 
                                             if (flag == 1) break;
                                         }
                                         if (flag == 1) {
-                                            instruction.erase(it + 1);
-                                            instruction.erase(it + 1);
+                                            it = instruction.erase(it + 1) - 1;
+                                            it = instruction.erase(it + 1) - 1;
                                             continue;
                                         }
                                     }
@@ -93,11 +96,19 @@ Instruction::InstructionStream DoScan(Instruction::InstructionStream RefStream) 
                             }
                         }
                     }
+                    case 4: {
+                        /*
+                         * b    xxx
+                         * xxx:
+                         *
+                         * xxx:
+                         * */
+                        // TODOPee
+                    }
                 }
             }
         }
     }
-
     return instruction;
 
 }
