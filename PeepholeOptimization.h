@@ -13,10 +13,10 @@ Instruction::InstructionStream DoScan(Instruction::InstructionStream RefStream) 
     instructionNameSet[typeid(Instruction::LabelInstruction).name()] = 0;   // Label Name
     instructionNameSet[typeid(Instruction::LoadInstruction).name()] = 1;    // Load Name
     instructionNameSet[typeid(Instruction::SaveInstruction).name()] = 2;    // Save Name
-    instructionNameSet[typeid(Instruction::MoveInstruction).name()] = 3;    // Save Name'
+    instructionNameSet[typeid(Instruction::MoveInstruction).name()] = 3;    // Move Name'
     instructionNameSet[typeid(Instruction::BranchInstruction).name()] = 4;  // Branch Name
 
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 5; i++) {
         for (auto it = instruction.begin(); it != instruction.end(); it++) {
             std::string nowInstructionName = typeid(**it).name();
 
@@ -57,8 +57,8 @@ Instruction::InstructionStream DoScan(Instruction::InstructionStream RefStream) 
                                         int flag = 0;
                                         for (int i = 3; i <= 50; i++) {
                                             followedInstructionName = typeid(**(it + i)).name();
-                                            if (!instructionNameSet.count(followedInstructionName)) {
-                                                flag = 1;
+                                            if (!instructionNameSet.count(followedInstructionName) && instructionNameSet[followedInstructionName] == 4) {
+                                                flag = 0;
                                                 break;
                                             }
                                             switch (instructionNameSet[followedInstructionName]) {
