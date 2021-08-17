@@ -1045,7 +1045,12 @@ namespace Backend::Translator {
                              *
                              * glb_xxx      %var_pos, "<global name>"
                              * */
-                            ins << LoadInstruction(mapping.at(ops[0]), "=" + globalPtrToVal[globalMapping[ops[1].getStrValue()]]);
+                            auto movw = MoveInstruction(mapping.at(ops[0]), ":lower16:" + globalPtrToVal[globalMapping[ops[1].getStrValue()]]),
+                                 movt = MoveInstruction(mapping.at(ops[0]), ":upper16:" + globalPtrToVal[globalMapping[ops[1].getStrValue()]]);
+                            movw.setPosition(MoveInstruction::MovePosition::LOW);
+                            movt.setPosition(MoveInstruction::MovePosition::HIGH);
+                            ins << std::move(movw) << std::move(movt);
+//                            ins << LoadInstruction(mapping.at(ops[0]), "=" + globalPtrToVal[globalMapping[ops[1].getStrValue()]]);
 //                             ins << LoadInstruction(mapping.at(ops[0]), globalMapping[ops[1].getStrValue()]);
                         }
                             break;
